@@ -95,7 +95,7 @@ namespace wm {
             } else {
                     std::cout << "Session created successfully" << std::endl;
             }
-            const string model_path = "../happyModel.pb";
+            const string model_path = "../Model/happyModel.pb";
             //--------------------------------从pb文件中读取模型--------------------------------
 
             tensorflow::GraphDef graph_def;

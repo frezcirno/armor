@@ -24,8 +24,7 @@
     mode = 2   # 0 1 2
 
 [cap]
-    is-video = true   # true为打开视频或垃圾摄像头, false为打开摄像头
-    is-mind  = false   # true为使用mindvision, false为打开大华摄像头
+    is-video = false   # true为打开视频或垃圾摄像头, false为打开摄像头
     video-path ="./全国赛part3.avi"   #视频路径或垃圾摄像头路径
     # 录视频
     record = false

@@ -7,8 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "-Ofast -march=native -pthread")
 
 set(CAMERA "DAHUA") # default
-set(CAMERA "MINDVISION")
-set(CAMERA "DAHENG")
+#set(CAMERA "MINDVISION")
+#set(CAMERA "DAHENG")
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 
