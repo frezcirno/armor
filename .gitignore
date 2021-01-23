@@ -1,0 +1,5 @@
+.vscode/
+build/
+
+# 太大了, 不放在仓库里面, 自行下载
+tensorflow/
