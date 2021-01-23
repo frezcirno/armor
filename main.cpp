@@ -27,19 +27,22 @@ int main()
     communicator.startReceiveService(); // 开线程
 
     /* 开摄像头或视频 */
-    //    armor::LajiVision cap;
     armor::Capture *cap = nullptr;
 
     if (armor::stConfig.get<bool>("cap.is-video")){//打开视频或者垃圾摄像头
         cap = new armor::LajiVision();
-    }
-    else if(armor::stConfig.get<bool>("cap.is-mind"))
-    {
-        cap = new armor::MindVision();
-    }
-    else{
-        cap = new armor::MindVision();
-        // cap = new armor::DahuaVision();//打开大华摄像头
+    }else{
+
+#ifdef MINDVISION
+    cap = new armor::MindVision();
+
+#elseif DAHENG
+    cap = new armor::DahengVision();
+
+#else 
+    cap = new armor::DaHuaVision();
+
+#endif
     }
 
     cap->init(); // 初始化
