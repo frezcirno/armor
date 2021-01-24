@@ -108,7 +108,7 @@ int main()
             while ((cap->isOpened()) && !isServer.isWillExit()) {
 
                 if (cap->wait_and_get(frame, timeStamp, [&communicator, &gYaw, &gPitch]() {
-//                    communicator.getGlobalAngle(&gYaw, &gPitch);
+                    communicator.getGlobalAngle(&gYaw, &gPitch);
                 })) {
 
                     /* 刷新主线程窗口图像 */
@@ -118,7 +118,7 @@ int main()
                     isClient.addText(cv::format("send %2.2f ms", communicator.getCurrentInterval() / 1000.0));
 
                     isClient.clock("run");
-//                    communicator.getGlobalAngle(&gYaw, &gPitch);
+                    communicator.getGlobalAngle(&gYaw, &gPitch);
                     /* core code */
                     auto mode = communicator.getWorkMode();
                     //auto mode =  armor::RM_WINDMILL_SMALL_CLOCK;
