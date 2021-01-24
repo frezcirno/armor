@@ -36,7 +36,7 @@ int main()
 #ifdef MINDVISION
     cap = new armor::MindVision();
 
-#elseif DAHENG
+#elif DAHENG
     cap = new armor::DahengVision();
 
 #else 

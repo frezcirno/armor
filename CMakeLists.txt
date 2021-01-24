@@ -6,9 +6,7 @@ set(CMAKE_CXX_STANDARD 14)  # for chrono
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "-Ofast -march=native -pthread")
 
-set(CAMERA "DAHUA") # default
-#set(CAMERA "MINDVISION")
-#set(CAMERA "DAHENG")
+set(CAMERA "DAHUA") # 可选项: "DAHUA" (default), "MINDVISION", "DAHENG"
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -64,18 +62,19 @@ target_link_libraries(attack ${Boost_LIBRARIES} usb-1.0)
 target_link_libraries(attack ${CMAKE_CURRENT_SOURCE_DIR}/tensorflow/libtensorflow_cc.so ${CMAKE_CURRENT_SOURCE_DIR}/tensorflow/libtensorflow_framework.so.2)
 
 ## DaHua SDK 和 MindVision SDK 库文件重名, 只能取一个
-if (${CAMERA} EQUAL "MINDVISION")
-    message("Linking MindVision SDK...")
+if ("${CAMERA}" STREQUAL "MINDVISION")
+    message(STATUS "Linking MindVision SDK...")
     target_link_libraries(attack /opt/MindVision/lib/x64/libMVSDK.so)
     add_definitions(-DMINDVISION)
 
-# elseif (${CAMERA} EQUAL "DAHENG")
-    message("Linking DaHeng SDK...")
-#    target_link_libraries(attack /opt/MindVision/lib/x64/libMVSDK.so)
+elseif ("${CAMERA}" STREQUAL "DAHENG")
+    message(STATUS "Linking DaHeng SDK...")
+    message(STATUS "[ERROR] DaHeng SDK hasnot been finished!!")
+    # target_link_libraries(attack /opt/MindVision/lib/x64/libMVSDK.so)
     add_definitions(-DDAHENG)
 
 else ()
-    message("Linking DaHua SDK...")
+    message(STATUS "Linking DaHua SDK...")
     target_link_libraries(attack /opt/DahuaTech/MVviewer/lib/libMVSDK.so) 
 
 endif ()

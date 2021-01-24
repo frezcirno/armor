@@ -625,7 +625,7 @@ public:
     }
 };
 
-#elseif DAHENG
+#elif DAHENG
 
 #else
 /**
