@@ -42,11 +42,13 @@ namespace armor
         static std::atomic<int64_t> s_latestTimeStamp; // 已经发送的帧编号
         static std::deque<Target> s_historyTargets;    // 打击历史, 最新的在头部, [0, 1, 2, 3, ....]
         static Kalman kalman;                          // 卡尔曼滤波
+        static tensorflow::Session *m_session;
     };
     std::mutex AttackBase::s_mutex;
     std::atomic<int64_t> AttackBase::s_latestTimeStamp(0);
     std::deque<Target> AttackBase::s_historyTargets;
     Kalman AttackBase::kalman;
+    tensorflow::Session* AttackBase::m_session;
 /*
   自瞄主类
  */
@@ -76,6 +78,11 @@ namespace armor
         {
             mycnn::loadWeights("../info/dumpe2.nnet");
             m_isUseDialte = stConfig.get<bool>("auto.is-dilate");
+            NewSession(SessionOptions(), &m_session);
+            init_tf_session();
+        }
+        ~Attack(){
+            m_session->Close();
         }
         void setMode(bool colorMode) { mode = colorMode; }
 
@@ -286,13 +293,13 @@ namespace armor
             }
             return true;
         }
+
         /**
-         * @name init_my_tf
-         * @param session 交互接口
+         * @name init_tf_session
          * @func 读取模型并设置到session中
          * @return input
          */ 
-        inline Tensor init_my_tf(Session *session)
+        void init_tf_session()
         {
             /* 从pb文件中读取模型 */
             GraphDef graph_def;
@@ -302,13 +309,11 @@ namespace armor
             else
                 std::cout << "Load graph protobuf successfully" << std::endl;
             /* 将模型设置到创建的Session里 */
-            status = session->Create(graph_def);
+            status = m_session->Create(graph_def);
             if (!status.ok())
                 std::cout << status.ToString() << std::endl;
             else
                 std::cout << "Add graph to session successfully" << std::endl;
-            Tensor input(DT_FLOAT, TensorShape({1, fixedSize, fixedSize, 1}));
-            return input;
         }
         /**
          * @name m_classify_single_tensor
@@ -319,15 +324,7 @@ namespace armor
         {
             if (m_preTargets.empty())
                 return;
-            Session *session;
-            /* 创建session */
-            Status status = NewSession(SessionOptions(), &session);
-            if (!status.ok())
-                std::cout << status.ToString() << std::endl;
-            else
-                std::cout << "Session created successfully" << std::endl;
-            /* 初始化session */
-            Tensor input = init_my_tf(session);
+            Tensor input = Tensor(DT_FLOAT, TensorShape({1, fixedSize, fixedSize, 1}));
 
             for (auto &_tar : m_preTargets)
             {
@@ -354,7 +351,7 @@ namespace armor
                     /* 保留最终输出 */
                     std::vector<tensorflow::Tensor> outputs;
                     /* 计算最后结果 */
-                    TF_CHECK_OK(session->Run({std::pair<string, Tensor>(input_name, input)}, {output_name}, {}, &outputs));
+                    TF_CHECK_OK(m_session->Run({std::pair<string, Tensor>(input_name, input)}, {output_name}, {}, &outputs));
                     /* 获取输出 */
                     auto output_c = outputs[0].scalar<float>();
                     float result = output_c();
@@ -365,7 +362,6 @@ namespace armor
                 else
                     continue;
             }
-            session->Close();
             m_is.addClassifiedTargets("After Classify", m_targets);
             DEBUG("m_classify end")
         }

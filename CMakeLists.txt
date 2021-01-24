@@ -32,7 +32,7 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/tensorflow)
 #=========================== Boost ===============================
 find_package(Boost REQUIRED COMPONENTS thread)
 if (!Boost_FOUND)
-    message("-- Found Boost NOT FOUND")
+    message("-- Boost NOT FOUND, Install with 'sudo apt install libboost-dev'")
 endif ()
 
 #========================== Serial ===============================

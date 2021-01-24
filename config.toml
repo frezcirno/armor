@@ -1,7 +1,7 @@
 
 [attack]
 #    attack-color =  'red'
-    attack-color = 'blue'
+    attack-color = 'blue' # 击打颜色
 
 # 弹道
 [curve]
@@ -21,11 +21,11 @@
     serial-port = '/dev/USBsp0'
 
 [isServer]
-    mode = 2   # 0 1 2
+    mode = 2   # 0-不启动ISServer 1-? 2-?
 
 [cap]
-    is-video = false   # true为打开视频或垃圾摄像头, false为打开摄像头
-    video-path ="./全国赛part3.avi"   #视频路径或垃圾摄像头路径
+    is-video = true   # true为打开视频或垃圾摄像头, false为打开摄像头
+    video-path ="../video/全国赛part3.avi"   #视频路径或垃圾摄像头路径
     # 录视频
     record = false
 
