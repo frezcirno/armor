@@ -9,7 +9,6 @@
 #include "ThreadPool.h"
 #include "thread"
 #include "future"
-#include "layers.hpp"
 #include "utility"
 #include "dirent.h"
 
@@ -29,6 +28,7 @@ const string model_path = "../Model/happyModel.pb";
 /*输入输出节点详见ipynb的summary*/
 const string input_name = "input_1:0";
 const string output_name = "y/Sigmoid:0";
+const int fixedSize = 32;
 
 namespace armor
 {
@@ -76,7 +76,6 @@ namespace armor
                                                                                            m_is(isClient),
                                                                                            m_isEnablePredict(true), m_currentTimeStamp(0), m_pid(pid), m_isUseDialte(false)
         {
-            mycnn::loadWeights("../info/dumpe2.nnet");
             m_isUseDialte = stConfig.get<bool>("auto.is-dilate");
             NewSession(SessionOptions(), &m_session);
             init_tf_session();

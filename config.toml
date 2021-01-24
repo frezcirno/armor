@@ -1,7 +1,6 @@
 
 [attack]
-#    attack-color =  'red'
-    attack-color = 'blue' # 击打颜色
+    attack-color = 'red' # 击打颜色, ['red', 'blue']
 
 # 弹道
 [curve]
@@ -17,14 +16,14 @@
     dx = [[1412, -50], [2100, -50], [3110, -50], [4478, -50]]
 
 [communicator]
-    enable = false
+    enable = true
     serial-port = '/dev/USBsp0'
 
 [isServer]
     mode = 2   # 0-不启动ISServer 1-? 2-?
 
 [cap]
-    is-video = true   # true为打开视频或垃圾摄像头, false为打开摄像头
+    is-video = false   # true为打开视频或垃圾摄像头, false为打开摄像头
     video-path ="../video/全国赛part3.avi"   #视频路径或垃圾摄像头路径
     # 录视频
     record = false
@@ -38,7 +37,7 @@
     enable-predict = true
     # 摄像头
     laji-exposure = 0.0028                                 # 垃圾摄像头曝光
-    pro-exposure = 3000.0                                  # 工业摄像头曝光
+    pro-exposure = 970.0                                  # 工业摄像头曝光
     cam-model-path = '../data/camera.xml'         # 相机参数文件路径
     kp = 1.0
     ki = 0.0

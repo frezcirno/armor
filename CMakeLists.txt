@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 14)  # for chrono
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "-Ofast -march=native -pthread")
 
-set(CAMERA "DAHUA") # 可选项: "DAHUA" (default), "MINDVISION", "DAHENG"
+set(CAMERA "MINDVISION") # 可选项: "DAHUA" (default), "MINDVISION", "DAHENG"
 
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -44,7 +44,7 @@ include_directories(${serial_INCLUDE_DIRS})
 include_directories(/opt/DahuaTech/MVviewer/include)
 
 #======================== MindVision SDK ==============================
-include_directories(/opt/MindVision/include)
+include_directories(/home/sp/opt/mindvision/include)
 
 #========================= Include ===============================
 include_directories(source include)
@@ -64,7 +64,7 @@ target_link_libraries(attack ${CMAKE_CURRENT_SOURCE_DIR}/tensorflow/libtensorflo
 ## DaHua SDK 和 MindVision SDK 库文件重名, 只能取一个
 if ("${CAMERA}" STREQUAL "MINDVISION")
     message(STATUS "Linking MindVision SDK...")
-    target_link_libraries(attack /opt/MindVision/lib/x64/libMVSDK.so)
+    target_link_libraries(attack /home/sp/opt/mindvision/lib/x64/libMVSDK.so)
     add_definitions(-DMINDVISION)
 
 elseif ("${CAMERA}" STREQUAL "DAHENG")

@@ -107,9 +107,7 @@ int main()
 
             while ((cap->isOpened()) && !isServer.isWillExit()) {
 
-
                 if (cap->wait_and_get(frame, timeStamp, [&communicator, &gYaw, &gPitch]() {
-
 //                    communicator.getGlobalAngle(&gYaw, &gPitch);
                 })) {
 
@@ -164,8 +162,6 @@ int main()
                                         pWindMill->mode="triangular";
                                         break;
                                 }
-
-
 
                                 if (pWindMill->run(frame, pitch, yaw, (double) cv::getTickCount())) {//有目标，运行风车击打
                                     communicator.send(0.0, 0.0,
