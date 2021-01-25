@@ -397,15 +397,13 @@ namespace armor
             gPitch_ = gPitch_ * M_PI / (180.0);
 
             /* yaw 为绕y轴旋转的 */
-            m_rotY = (cv::Mat_<double>(3, 3)
-                          << std::cos(gYaw_),
+            m_rotY = (cv::Mat_<double>(3, 3) << std::cos(gYaw_),
                       0, std::sin(gYaw_),
                       0, 1, 0,
                       -std::sin(gYaw_), 0, std::cos(gYaw_));
 
             /* pitch 为绕x轴旋转的 */
-            m_rotX = (cv::Mat_<double>(3, 3)
-                          << 1,
+            m_rotX = (cv::Mat_<double>(3, 3) << 1,
                       0, 0,
                       0, std::cos(gPitch_), -std::sin(gPitch_),
                       0, std::sin(gPitch_), std::cos(gPitch_));
