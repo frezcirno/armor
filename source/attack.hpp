@@ -31,8 +31,8 @@ const string output_name = "y/Sigmoid:0";
 const int fixedSize = 32;
 
 namespace armor {
-/*
-  自瞄基类, 多线程共享变量用
+/**
+ * 自瞄基类, 多线程共享变量用
  */
 class AttackBase {
   protected:
@@ -42,25 +42,26 @@ class AttackBase {
     static Kalman kalman;                           // 卡尔曼滤波
     static tensorflow::Session *m_session;
 };
+/* 类静态成员初始化 */
 std::mutex AttackBase::s_mutex;
 std::atomic<int64_t> AttackBase::s_latestTimeStamp(0);
 std::deque<Target> AttackBase::s_historyTargets;
 Kalman AttackBase::kalman;
 tensorflow::Session *AttackBase::m_session;
-/*
-  自瞄主类
+/**
+ * 自瞄主类
  */
 class Attack : AttackBase {
   private:
     Communicator &m_communicator;
     ImageShowClient &m_is;
     cv::Mat m_bgr;
-    cv::Mat m_bgr_raw;
+    cv::Mat m_bgr_raw;  // 原图
     // 目标
     std::vector<Target> m_preTargets;  // 预检测目标
     std::vector<Target> m_targets;     // 本次有效目标集合
     // 开小图
-    cv::Point2i m_startPt; // 
+    cv::Point2i m_startPt;   //
     bool m_isEnablePredict;  // 是否开预测
 
     int64_t m_currentTimeStamp;  // 当前时间戳
@@ -83,13 +84,14 @@ class Attack : AttackBase {
 
   private:
     /**
-     * @name m_preDetect
-     * @func 通过hsv筛选和进行预处理获得装甲板
+     * 通过hsv筛选和进行预处理获得装甲板
+     * @change bgrChecked 处理过的黑白图片
+     * @change m_preTargets 预检测得到的装甲板列表, 可能有两个装甲板共享一个灯条的情况发生
      */
     void m_preDetect() {
-        DEBUG("m_preDetect")
-        /* 使用inRange对颜色进行筛选 */
         cv::Mat bgrChecked;
+
+        /* 使用inRange对颜色进行筛选: m_bgr -> bgrChecked */
         m_is.clock("inRange");
         if (mode) {
             /* 红色 */
@@ -99,24 +101,24 @@ class Attack : AttackBase {
             cv::inRange(m_bgr, cv::Scalar(130, 100, 0), cv::Scalar(255, 255, 65), bgrChecked);
         }
         m_is.clock("inRange");
-        DEBUG("inRange end")
-        /* 进行膨胀操作（默认关闭） */
+
+        /* 进行膨胀操作（默认关闭）: bgrChecked -> bgrChecked */
         m_is.addImg("bgrChecked", bgrChecked, true);
         if (m_isUseDialte) {
             cv::Mat element = getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
             dilate(bgrChecked, bgrChecked, element);
             m_is.addImg("dilate", bgrChecked, true);
         }
-        /* 寻找边缘，并圈出countours */
+
+        /* 寻找边缘，并圈出contours: bgrChecked -> contours */
         std::vector<std::vector<cv::Point2i>> contours;
         cv::findContours(bgrChecked, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
         m_is.addEvent("contours", contours);
-        DEBUG("findContours end")
 
-        /* 对灯条进行筛选 */
+        /* 对contours进行筛选 */
         std::vector<Light> lights;
         for (const auto &_pts : contours) {
-            /* 设定最小面积>=5 */
+            /* 设定最小面积 >= 5 */
             if (_pts.size() < 5)
                 continue;
             /* 寻找最小外接矩形 */
@@ -129,8 +131,7 @@ class Attack : AttackBase {
             Light _light;
             cv::Point2f topPt;     //顶部中点
             cv::Point2f bottomPt;  //底部中点
-            cv::Point2f pts[4];
-
+            cv::Point2f pts[4];    // 四个角点
             rRect.points(pts);
             if (rRect.size.width > rRect.size.height)  //根据外接矩形的特性需调整点
             {
@@ -152,17 +153,19 @@ class Attack : AttackBase {
             }
             _light.centerPt = rRect.center;              //中心点
             _light.length = cv::norm(bottomPt - topPt);  //长度
-                                                         /* 判断长度和倾斜角是否合乎要求 */
+
+            /* 判断长度和倾斜角是否合乎要求 */
             if (_light.length < 3.0 || 800.0 < _light.length || cv::abs(_light.angle - 90) > 30.0)
                 continue;
             lights.emplace_back(_light);
         }
-        DEBUG("lights end")
         m_is.addEvent("lights", lights);
+
         /* 对筛选出的灯条按x大小进行排序 */
-        std::sort(lights.begin(), lights.end(), [](Light &a_, Light &b_) -> bool {
+        std::sort(lights.begin(), lights.end(), [](const Light &a_, const Light &b_) -> bool {
             return a_.centerPt.x < b_.centerPt.x;
         });
+
         /* 对灯条进行两两组合并筛选出预检测的装甲板 */
         for (size_t i = 0; i < lights.size(); ++i) {
             for (size_t j = i + 1; j < lights.size(); ++j) {
@@ -184,30 +187,27 @@ class Attack : AttackBase {
                 /* 获得扩展区域像素坐标, 若无法扩展则放弃该目标 */
                 if (!target.convert2ExternalPts2f())
                     continue;
-                m_preTargets.emplace_back(target);
+                m_preTargets.emplace_back(std::move(target));
             }
         }
         m_is.addEvent("preTargets", m_preTargets);
-        DEBUG("preTargets end")
     }
     int m_cropNameCounter = 0;
 
     /**
-     * @name mat2Tensor
      * @param image 图片
      * @param t tensor
-     * @func 将图片从mat转化为tensor
+     * 将图片从mat转化为tensor
      */
-    void mat2Tensor(cv::Mat &image, Tensor &t) {
+    void mat2Tensor(const cv::Mat &image, Tensor &t) {
         float *tensor_data_ptr = t.flat<float>().data();
         cv::Mat fake_mat(image.rows, image.cols, CV_32FC(image.channels()), tensor_data_ptr);
         image.convertTo(fake_mat, CV_32FC(image.channels()));
     }
     /**
-     * @name getThreshold
      * @param mat 图片
      * @param thre_proportion 比例阈值 0.1
-     * @func 得到二值化阈值
+     * 得到二值化阈值
      * @return i 二值化阈值
      */
     int getThreshold(const cv::Mat &mat, double thre_proportion = 0.1) {
@@ -236,10 +236,9 @@ class Attack : AttackBase {
         return i > 0 ? i : 0;
     }
     /**
-     * @name loadAndPre
      * @param img 图片
      * @param result
-     * @func 进行图片的预处理和高光补偿
+     * 进行图片的预处理和高光补偿
      * @return true/false
      */
     bool loadAndPre(cv::Mat img, cv::Mat &result) {
@@ -270,8 +269,7 @@ class Attack : AttackBase {
     }
 
     /**
-     * @name init_tf_session
-     * @func 读取模型并设置到session中
+     * 读取模型并设置到session中
      * @return input
      */
     void init_tf_session() {
@@ -290,21 +288,19 @@ class Attack : AttackBase {
             std::cout << "Add graph to session successfully" << std::endl;
     }
     /**
-     * @name m_classify_single_tensor
      * @param isSave 是否保存样本图片
-     * @func 基于tensorflow的分类器
+     * 基于tensorflow的分类器
      */
     void m_classify_single_tensor(bool isSave = false) {
         if (m_preTargets.empty())
             return;
-        Tensor input = Tensor(DT_FLOAT, TensorShape({1, fixedSize, fixedSize, 1}));
+        tensorflow::Tensor input = Tensor(DT_FLOAT, TensorShape({1, fixedSize, fixedSize, 1}));
 
         for (auto &_tar : m_preTargets) {
             cv::Rect tmp = cv::boundingRect(_tar.pixelPts2f_Ex);
             cv::Mat tmp2 = m_bgr_raw(tmp).clone();
             /* 将图片变成目标大小 */
-            cv::Mat transMat = cv::getPerspectiveTransform(_tar.pixelPts2f_Ex,
-                _tar.pixelPts2f_Ex);
+            cv::Mat transMat = cv::getPerspectiveTransform(_tar.pixelPts2f_Ex, _tar.pixelPts2f_Ex);
             cv::Mat _crop;
             /* 投影变换 */
             cv::warpPerspective(tmp2, _crop, transMat, cv::Size(tmp2.size()));
@@ -335,8 +331,8 @@ class Attack : AttackBase {
         DEBUG("m_classify end")
     }
     /**
-     * @name m_match
-     * @func 击打策略函数
+     * 击打策略函数
+     * @return emSendStatusA 
      */
     emSendStatusA m_match() {
         /* 更新下相对帧编号 */
@@ -355,7 +351,7 @@ class Attack : AttackBase {
             auto minTarElement = std::min_element(
                 m_targets.begin(), m_targets.end(), [](Target &a_, Target &b_) -> bool {
                     return cv::norm(a_.ptsInGimbal) < cv::norm(b_.ptsInGimbal);
-                });  //找到含最小元素的目标位置
+                });  //找到含离云台最近的目标
             if (minTarElement != m_targets.end()) {
                 s_historyTargets.emplace_front(*minTarElement);
                 PRINT_INFO("++++++++++++++++ 发现目标: 选择最近的 ++++++++++++++++++++\n");
@@ -420,9 +416,8 @@ class Attack : AttackBase {
 
   public:
     /**
-     * @name enablePredict
      * @param enable = true: 开启
-     * @func 设置是否开启预测
+     * 设置是否开启预测
      */
     void enablePredict(bool enable = true) {
         m_communicator.enableReceiveGlobalAngle(enable);
@@ -430,12 +425,11 @@ class Attack : AttackBase {
     }
 
     /**
-     * @name getBoundingRect
      * @param tar 上一个检测到的装甲
      * @param rect 截的图
      * @param size 采集图像参数
      * @param extendFlag 是否扩展
-     * @func 图像扩展ROI
+     * 图像扩展ROI
      */
     void getBoundingRect(Target &tar, cv::Rect &rect, cv::Size &size, bool extendFlag = false) {
         rect = cv::boundingRect(s_historyTargets[0].pixelPts2f_Ex);
@@ -461,12 +455,11 @@ class Attack : AttackBase {
     }
 
     /**
-     * @name run
+     * 主运行函数
      * @param src 彩图
-     * @param timeStamp 时间戳
+     * @param timeStamp 调用时的时间戳
      * @param gYaw 从电控获得yaw
      * @param gPitch 从电控获得pitch
-     * @func 主运行函数
      * @return true
      */
     bool run(cv::Mat &src, int64_t timeStamp, float gYaw, float gPitch) {
@@ -477,6 +470,8 @@ class Attack : AttackBase {
         m_targets.clear();
         m_preTargets.clear();
         m_startPt = cv::Point(0, 0);
+
+        /* 如果有历史打击对象 */
         if (s_historyTargets.size() >= 2 && s_historyTargets[0].rTick <= 10) {
             cv::Rect latestShootRect;
             getBoundingRect(s_historyTargets[0], latestShootRect, stFrameInfo.size, true);
@@ -493,11 +488,11 @@ class Attack : AttackBase {
         m_classify_single_tensor(0);
         m_is.clock("m_classify");
 
-        /* 已经有更新的一帧发出去了 */
+        /* 如果已经有更新的一帧发出去了, 则取消本帧的发送 */
         if (timeStamp < s_latestTimeStamp.load())
             return false;
 
-        /* 处理多线程新旧数据处理的问题 */
+        /* 取得发送锁🔒 */
         std::unique_lock<std::mutex> preLock(s_mutex, std::try_to_lock);
         while (!preLock.owns_lock() && timeStamp > s_latestTimeStamp.load()) {
             armor::thread_sleep_us(5);
@@ -507,18 +502,18 @@ class Attack : AttackBase {
         /* 目标匹配 + 预测 + 修正弹道 + 计算欧拉角 + 射击策略 */
         if (preLock.owns_lock() && timeStamp > s_latestTimeStamp.load()) {
             s_latestTimeStamp.exchange(timeStamp);
-            float rYaw = 0.0;
-            float rPitch = 0.0;
+            float rYaw = 0.0, rPitch = 0.0;
+
             /* 获得云台全局欧拉角 */
             m_communicator.getGlobalAngle(&gYaw, &gPitch);
+
             /* 计算世界坐标参数，转换到世界坐标系 */
             for (auto &tar : m_targets) {
-                tar.calcWorldParams();
-                tar.convert2WorldPts(-gYaw, gPitch);
+                tar.calcWorldParams(); // 计算云台坐标系坐标
+                tar.convert2WorldPts(-gYaw, gPitch); // 计算世界坐标系坐标
             }
             /* 4.目标匹配 */
             emSendStatusA statusA = m_match();
-            DEBUG("m_match end")
 
             if (!s_historyTargets.empty()) {
                 m_is.addFinalTargets("selected", s_historyTargets[0]);
