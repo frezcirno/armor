@@ -209,6 +209,11 @@ struct Camera {
  */
 struct
 {
+    /**
+     * x - Right
+     * y - Up
+     * z - Forward
+     */
     // 仅灯条矩形
     std::vector<cv::Point3d> smallFig3f = {cv::Point3d(0, 0, 0), cv::Point3d(0, -55, 0), cv::Point3d(135, -55, 0), cv::Point3d(135, 0, 0)};
     std::vector<cv::Point3d> largeFig3f = {cv::Point3d(0, 0, 0), cv::Point3d(0, -55, 0), cv::Point3d(230, -55, 0), cv::Point3d(230, 0, 0)};
@@ -251,10 +256,38 @@ struct Target {
     int rTick;                               // 相对帧编号
     emTargetType type;                       // TARGET_SMALL, TARGET_TARGET
 
+    cv::Mat rv, // 旋转向量
+        tv,     // 偏移向量
+        rvMat;  // 旋转矩阵
+
     cv::Mat m_rotY, m_rotX;  // 旋转到绝对坐标系
     cv::Point3d vInGimbal3d;
 
     explicit Target() : rPitch(0), rYaw(0), rTick(0), type(TARGET_SMALL) {}
+
+    Target(const Target&) = default;
+
+    Target operator=(const Target& t) {
+        this->pixelPts2f = t.pixelPts2f;    
+        this->pixelCenterPt2f = t.pixelCenterPt2f;            
+        this->pixelPts2f_Ex = t.pixelPts2f_Ex; 
+        this->ptsInGimbal = t.ptsInGimbal;                
+        this->ptsInWorld = t.ptsInWorld;                 
+        this->ptsInWorld_Predict = t.ptsInWorld_Predict;         
+        this->ptsInGimbal_Predict = t.ptsInGimbal_Predict;        
+        this->ptsInShoot = t.ptsInShoot;                 
+        this->rPitch = t.rPitch;                           
+        this->rYaw = t.rYaw;                             
+        this->rTick = t.rTick;                              
+        this->type = t.type;                      
+        this->rv = t.rv;
+        this->tv = t.tv;
+        this->rvMat = t.rvMat;
+        this->m_rotY = t.m_rotY;
+        this->m_rotX = t.m_rotX;
+        this->vInGimbal3d = t.vInGimbal3d;
+        return *this;
+    }
 
     /**
      * 移动构造函数
@@ -268,7 +301,9 @@ struct Target {
                          ptsInWorld(std::move(t.ptsInWorld)),
                          ptsInWorld_Predict(std::move(t.ptsInWorld_Predict)),
                          ptsInGimbal_Predict(std::move(t.ptsInGimbal_Predict)),
-                         ptsInShoot(std::move(t.ptsInShoot)) {}
+                         ptsInShoot(std::move(t.ptsInShoot)),
+                         rv(std::move(t.rv)), tv(std::move(t.tv)), rvMat(std::move(t.rvMat)),
+                         m_rotY(std::move(t.m_rotY)), m_rotX(std::move(t.m_rotX)), vInGimbal3d(std::move(t.vInGimbal3d)) {}
 
     /**
      * @param a 左上（从左上开始顺时针设置）
@@ -319,9 +354,6 @@ struct Target {
     void calcWorldParams() {
         DEBUG("solvePnPRansac")
         /* 转化成相对原始图幅大小的像素坐标 */
-        cv::Mat rv, /*旋转向量*/
-            tv,     /*偏移向量*/
-            rvMat;  /*旋转矩阵*/
         std::vector<cv::Point2d> gPixelPts2f;
         gPixelPts2f.reserve(4);  //灯条矩形的四个边角点坐标
         for (int i = 0; i < 4; ++i) {
@@ -352,8 +384,8 @@ struct Target {
         cv::Mat ptsInCamera_Mat = rvMat * stArmorStdFigure.smallShootPosition + tv;  //世界坐标系转到相机坐标系
         DEBUG("ptsInCamera_Mat")
         ptsInGimbal.x = ptsInCamera_Mat.at<double>(0, 0);
-        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1);
-        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) + 150;  //云台和相机光心的垂直坐标补偿
+        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) - 55;
+        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) - 25;  //云台和相机光心的垂直坐标补偿(mm)
         DEBUG("calcWorldParams end")
     }
 

@@ -13,7 +13,7 @@
 #include <serial/serial.h>
 
 #include "crc_table.hpp"
-#include "usbio.hpp"
+#include "usbio/include/usbio.hpp"
 
 #include "base.hpp"
 
@@ -72,7 +72,7 @@ class Communicator {
         return (ucCRC8);
     }
 
-    constexpr size_t m_frameSize = sizeof(__FrameSt);
+    constexpr static size_t m_frameSize = sizeof(__FrameSt);
 
     //包校验
     bool m_checkFrame(const uint8_t *buff) {
