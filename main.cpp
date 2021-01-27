@@ -104,7 +104,9 @@ int main() {
             float gPitch = 0.0;
 
             while (cap->isOpened() && !isServer.isWillExit()) {
-                if (cap->wait_and_get(frame, timeStamp, []() {})) {
+                if (cap->wait_and_get(frame, timeStamp, [&communicator, &gYaw, &gPitch]() {
+                    communicator.getGlobalAngle(&gYaw, &gPitch);
+                })) {
                     /* 刷新主线程窗口图像 */
                     isClient.update(frame, int(timeStamp / 1000));
                     isClient.addText(cv::format("ts %lld", timeStamp));
@@ -114,7 +116,7 @@ int main() {
                     isClient.clock("run");
 
                     /* 获取云台角度 */
-                    communicator.getGlobalAngle(&gYaw, &gPitch);
+                    // communicator.getGlobalAngle(&gYaw, &gPitch);
 
                     /* 获取工作模式(风车/装甲板) */
                     armor::emWorkMode mode = communicator.getWorkMode();

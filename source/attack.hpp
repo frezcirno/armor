@@ -103,11 +103,11 @@ class Attack : AttackBase {
         m_is.clock("inRange");
 
         /* 进行膨胀操作（默认关闭）: bgrChecked -> bgrChecked */
-        m_is.addImg("bgrChecked", bgrChecked, true);
+        // m_is.addImg("bgrChecked", bgrChecked, false);
         if (m_isUseDialte) {
             cv::Mat element = getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
             dilate(bgrChecked, bgrChecked, element);
-            m_is.addImg("dilate", bgrChecked, true);
+            // m_is.addImg("dilate", bgrChecked, false);
         }
 
         /* 寻找边缘，并圈出contours: bgrChecked -> contours */

@@ -249,7 +249,7 @@ class LajiVision : public Capture {
     bool wait_and_get(cv::Mat &frame, int64 &timeStamp, const std::function<void()> &func) override {
         std::lock_guard<std::mutex> lockGuard(m_mutex);
         m_cap >> frame;
-        resize(frame, frame, cv::Size(1920, 1080));
+        resize(frame, frame, cv::Size(1920, 1280));
 
         // frame = frame(cv::Rect(stFrameInfo.offset, stFrameInfo.size));
         func();
