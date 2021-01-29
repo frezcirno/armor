@@ -833,10 +833,13 @@ class DaHuaVision : public Capture {
 
             /* cvtColor图像转换, sFrameInfo.uiMediaType == CAMERA_MEDIA_TYPE_BAYGB8 */
             int64 t = cv::getTickCount();
-            cv::Mat by8Mat(
-                cv::Size(m_frame.getImageWidth(), m_frame.getImageHeight()), CV_8UC1,
-                (uchar *)m_frame.getImage());
-            cv::cvtColor(by8Mat, frame, cv::COLOR_BayerGB2RGB_EA);
+
+            cv::Mat by8Mat(cv::Size(m_frame.getImageWidth(), m_frame.getImageHeight()), CV_8UC1, (uchar *)m_frame.getImage());
+            cv::cvtColor(by8Mat, frame, cv::COLOR_BayerBG2BGR_EA);
+            // RG -> B
+            // GR -> G
+            // NO RB , BR 
+            // cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
 
             //                /* sdk函数图像转换 */
             //                CameraImageProcess(m_hCamera, m_pbyBuffer, m_pRgbBuffer,
