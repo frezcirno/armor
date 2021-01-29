@@ -44,7 +44,7 @@ include_directories(${serial_INCLUDE_DIRS})
 include_directories(/opt/DahuaTech/MVviewer/include)
 
 #======================== MindVision SDK ==============================
-include_directories(/home/sp/opt/mindvision/include)
+include_directories(/opt/mindvision/include)
 
 #========================= Include ===============================
 include_directories(source include)
