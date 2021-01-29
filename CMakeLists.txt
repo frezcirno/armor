@@ -44,7 +44,7 @@ include_directories(${serial_INCLUDE_DIRS})
 include_directories(/opt/DahuaTech/MVviewer/include)
 
 #======================== MindVision SDK ==============================
-include_directories(/home/sp/opt/mindvision/include)
+include_directories(/opt/mindvision/include)
 
 #========================= Include ===============================
 include_directories(source include)
@@ -64,7 +64,7 @@ target_link_libraries(attack ${CMAKE_CURRENT_SOURCE_DIR}/tensorflow/libtensorflo
 ## DaHua SDK 和 MindVision SDK 库文件重名, 只能取一个
 if ("${CAMERA}" STREQUAL "MINDVISION")
     message(STATUS "Linking MindVision SDK...")
-    target_link_libraries(attack /home/sp/opt/mindvision/lib/x64/libMVSDK.so)
+    target_link_libraries(attack /opt/mindvision/lib/x64/libMVSDK.so)
     add_definitions(-DMINDVISION)
 
 elseif ("${CAMERA}" STREQUAL "DAHENG")
