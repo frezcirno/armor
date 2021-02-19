@@ -191,6 +191,7 @@ class Attack : AttackBase {
             }
         }
         m_is.addEvent("preTargets", m_preTargets);
+	std::cout << "preTargets: "<< m_preTargets.size() << std::endl;
     }
     int m_cropNameCounter = 0;
 
@@ -328,6 +329,7 @@ class Attack : AttackBase {
                 continue;
         }
         m_is.addClassifiedTargets("After Classify", m_targets);
+	std::cout << "Targets: " << m_targets.size() << std::endl;
         DEBUG("m_classify end")
     }
     /**
@@ -575,6 +577,9 @@ class Attack : AttackBase {
                 m_is.addText(cv::format("rPitch %.3f", rPitch));
                 m_is.addText(cv::format("rYaw   %.3f", rYaw));
                 m_is.addText(cv::format("gYaw   %.3f", gYaw));
+		std::cout << "gYaw:   " << gYaw << std::endl;
+		std::cout << "gPitch: " << gPitch << std::endl;
+		std::cout << "rYaw:   " << rYaw << std::endl;
                 m_is.addText(cv::format("rYaw + gYaw   %.3f", rYaw - gYaw));
             }
             /* 8.通过PID对yaw进行修正（参数未修改） */
