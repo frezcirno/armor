@@ -1,28 +1,30 @@
-// by yaw 2019/03/14
-
+//2021 1 26
 #ifndef TARGET_HPP
 #define TARGET_HPP
 
 #include <vector>
 #include <opencv2/core.hpp>
 
-
-namespace wm {
-    struct Feature {
-    };
-
-    class Target {
+namespace wm
+{
+    //----------------------------------------------------------------------------------------------------------------------
+    // 目标类
+    //    为了保持接口不变，保留了之前的数据成员，但是很多没有用到
+    // ---------------------------------------------------------------------------------------------------------------------
+    class Target
+    {
     public:
-        std::vector<cv::Point2f> pixelPts2f;
-        double timeStamp = 0; // 照相的时间戳
-        cv::Point3f lPt;  // 云台坐标系下坐标
-        cv::Point3f wPt;  // 世界系下坐标
-        cv::Point3f tPt;  // 装甲片系下坐标
-        float lYaw = 0.0;
-        float lPitch = 0.0;
-        float wYaw = 0.0;  // 参考系下实际真实yaw
+        std::vector<cv::Point2f> vertexs; // 旋转矩形的四个顶点
+        double timeStamp = 0;             // 相机时间戳
+        cv::Point3f lPt;                  // 云台坐标系坐标
+        cv::Point3f wPt;                  // 世界坐标系坐标
+        cv::Point3f tPt;                  // 装甲板坐标系坐标
+
+        float lYaw = 0.0;    // 
+        float lPitch = 0.0;  //
+        float wYaw = 0.0;    // 参考系下实际真实yaw
         float wPitch = 0.0;  // 参考系下实际真实yaw
-        // Feature feature;
+
         int type = -1;  // -1 未识别 0 = 已被打中 1 = 该打
 
         cv::Mat RvTtoL;
@@ -44,21 +46,28 @@ namespace wm {
         float height;
 
         Target() {}
+        ~Target() {}
 
-        Target &operator=(const Target &c) {
-            for (int i = 0; i < 4; i++) {
-                pixelPts2f.push_back(c.pixelPts2f[i]);
-            }
-            timeStamp = c.timeStamp; // 照相的时间戳
-            lPt = c.lPt;  // 相机坐标系下坐标
-            wPt = c.wPt;  // 世界系下坐标
-            tPt = c.tPt;  // 装甲片系下坐标
+        void clear() { vertexs.clear(); }
+        Target &operator = (const Target &c) {
+            for (int i = 0; i < 4; i++)
+                vertexs.push_back(c.vertexs[i]);
+            timeStamp = c.timeStamp; // 相机时间戳
+
+            lPt = c.lPt;
+            wPt = c.wPt;             // 世界坐标系坐标
+            tPt = c.tPt;             // 装甲板坐标系坐标
+
             lYaw = c.lYaw;
             lPitch = c.lPitch;
-            wYaw = c.wYaw;  // 参考系下实际真实yaw
-            wPitch = c.wPitch;  // 参考系下实际真实yaw
-            // memcpy(&(this->feature), &(c.feature),sizeof(c.feature));
-            type = c.type;  // -1 未识别 0 = 已被打中 1 = 该打
+
+            wYaw = c.wYaw;           // 参考系下实际真实yaw
+            wPitch = c.wPitch;       // 参考系下实际真实yaw
+
+            type = c.type;           // -1 未识别 0 = 已被打中 1 = 该打
+
+            RvTtoL = c.RvTtoL.clone();
+            TvTtoL = c.TvTtoL.clone();
 
             wVx = c.wVx;
             wVy = c.wVy;
@@ -72,22 +81,11 @@ namespace wm {
             tVy = c.tVy;
             tVz = c.tVz;
 
-            RvTtoL = c.RvTtoL.clone();
-            TvTtoL = c.TvTtoL.clone();
-
             width = c.width;
             height = c.height;
 
             return *this;
         }
-
-        void clear() {
-            pixelPts2f.clear();
-        }
-
-        ~Target() {}
-
-
     };
 }
-#endif  // TARGET_HPP
+#endif
