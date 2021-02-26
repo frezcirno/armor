@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <opencv2/opencv.hpp>
+#include "communicator.hpp"
 #include <toml.h>
 
 #include "semaphore.hpp"
@@ -81,39 +82,7 @@ struct Camera {
     cv::Mat camMat;
     cv::Mat distCoeffs;
     cv::Mat m_ABC_x, m_ABC_y;
-
-    bool isTest = false;
-    bool isLinear = false;
-    /**
-     * 折线弹道
-     */
-    struct ShootLines {
-        //array存储 x(i),x(i+1),k,b
-        std::vector<std::array<double, 4>> m_lhkb;
-        explicit ShootLines() {}
-
-        /**
-         * y = k * x + b
-         * @param y2x   
-         * 折线拟合函数
-         * [2000, -100]  [3000, -150], [2200, ]
-         */
-        void fit(std::deque<cv::Point2f> &y2x) {
-            /*y2x升序排序，逐次比较x*/
-            std::sort(y2x.begin(), y2x.end(), [](cv::Point2f &a, cv::Point2f &b) -> bool {
-                return a.x < b.x;
-            });
-            for (size_t i = 0; i < y2x.size() - 1; ++i) {
-                std::array<double, 4> _lhkb = {0, 0, 0, 0};
-                _lhkb[0] = y2x[i].x;
-                _lhkb[1] = y2x[i + 1].x;
-                _lhkb[2] = (y2x[i].y - y2x[i + 1].y) / (y2x[i].x - y2x[i + 1].x);  //k=dy/dx
-                _lhkb[3] = y2x[i].y - _lhkb[2] * y2x[i].x;                         //b=y-kx
-                m_lhkb.emplace_back(_lhkb);
-            }
-        }
-
-    } m_stShootLines_x, m_stShootLines_y;
+    float bullet_speed;                     // 子弹速度
 
     /**
      * @param path 相机参数文件路径
@@ -125,47 +94,6 @@ struct Camera {
         cv::read(fs["camera_matrix"], camMat);
         cv::read(fs["distortion_coefficients"], distCoeffs);
         fs.release();
-
-        /* 初始化弹道参数 */
-        std::deque<cv::Point2f> disToY;
-        for (auto &_pts : armor::stConfig.get<toml::Array>("curve.dy")) {
-            std::vector<toml::Value> a = _pts.as<std::vector<toml::Value>>();
-            cv::Point2f pt = cv::Point2f(a[0].asNumber(), a[1].asNumber());
-            disToY.emplace_back(pt);
-        }
-        /* 多项式曲线拟合 */
-        curveFit(disToY, 2, m_ABC_y);
-
-        std::deque<cv::Point2f> disToX;
-        for (auto &_pts : armor::stConfig.get<toml::Array>("curve.dx")) {
-            std::vector<toml::Value> a = _pts.as<std::vector<toml::Value>>();
-            cv::Point2f pt = cv::Point2f(a[0].asNumber(), a[1].asNumber());
-            disToX.emplace_back(pt);
-        }
-        /* 多项式曲线拟合 */
-        curveFit(disToX, 2, m_ABC_x);
-        isTest = stConfig.get<bool>("curve.test-shoot");
-    }
-
-    /**
-     * Left * ABC = Right
-     * z ^ 2 * A + z * B + C = dy
-     * @param disToY [[x_0, y_0], [x_1, y_1], ...]
-     * @param degree 多项式次数
-     * @param ABC 拟合结果
-     * 多项式曲线拟合
-     */
-    static void curveFit(std::deque<cv::Point2f> &disToY, int degree, cv::Mat &ABC) {
-        size_t funNum = disToY.size();
-        cv::Mat Left = cv::Mat::zeros(funNum, degree + 1, CV_32F);
-        cv::Mat Right = cv::Mat::ones(funNum, 1, CV_32F);
-        for (size_t i = 0; i < funNum; ++i) {
-            for (size_t j = 0; j < degree + 1; ++j) {
-                Left.at<float>(i, j) += cv::pow(disToY[i].x, degree - j);
-            }
-            Right.at<float>(i, 0) = disToY[i].y;
-        }
-        cv::solve(Left, Right, ABC, cv::DECOMP_SVD);
     }
 
     /**
@@ -181,6 +109,21 @@ struct Camera {
         *pPitch = -_pitch;
         *pYaw = _yaw > 180 ? _yaw - 360 : _yaw;
     }
+    
+    /**
+     *@param pts 三维坐标
+     *@param pitch
+     *@param x
+     *@param z
+     *三维坐标转欧拉角工具函数
+     */
+    static void convertEuler2Pts(cv::Point3d &pts,float *pitch,double x,double z){
+        float _pitch =-pitch;
+        _pitch =_pitch > 0 ? _pitch : 360+_pitch;
+        pts.x=x;
+        pts.z=z;
+        pts.y=sin(_pitch/180*CV_PI)*cv::sqrt(pts.x * pts.x + pts.z * pts.z);
+    }
 
     /**
      * @param pts 原始坐标值
@@ -188,17 +131,12 @@ struct Camera {
      * 考虑到重力对子弹的影响，对云台所需仰角进行补偿
      */
     void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts) {
-        if (isTest) {
-            newPts.x = pts.x + armor::stConfig.get<int>("curve.test-dx");
-            newPts.y = pts.y + armor::stConfig.get<int>("curve.test-dy");
-            newPts.z = pts.z;
-        } else {
-            /* 使用二次形拟合 */
-            newPts.x = pts.x + m_ABC_x.at<float>(0, 0) * pts.z * pts.z +
-                       m_ABC_x.at<float>(1, 0) * pts.z + m_ABC_x.at<float>(2, 0);
-            newPts.y = pts.y + m_ABC_y.at<float>(0, 0) * pts.z * pts.z +
-                       m_ABC_y.at<float>(1, 0) * pts.z + m_ABC_y.at<float>(2, 0);
-            newPts.z = pts.z;
+            getBulletSpeed(bullet_speed);
+            float pitch,yaw,newpitch;
+            convertPts2Euler(pts,pitch,yaw);
+            float compensateGravity_pitch_tan = tan(pitch/180*CV_PI) + (0.5*9.8*(pts.z / bullet_speed)*(pts.z / bullet_speed)) / cos(pitch/180*CV_PI);
+            newpitch = atan(compensateGravity_pitch_tan)/CV_PI*180;
+            convertEuler2Pts(newPts,newpitch,pts.x,pts.z);
         }
     }
 } stCamera("../data/camera6mm.xml");
@@ -286,6 +224,7 @@ struct Target {
         this->m_rotY = t.m_rotY;
         this->m_rotX = t.m_rotX;
         this->vInGimbal3d = t.vInGimbal3d;
+        this->bullet_speed=t.bullet_speed;
         return *this;
     }
 
