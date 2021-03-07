@@ -12,7 +12,6 @@
 #include "Target.hpp"
 #include "Tool.hpp"
 #include "opencv2/opencv.hpp"
-#include "opencv2/imgproc/types_c.h"
 
 #define WIDTH 215                          // 装甲板宽度相对值
 #define HEIGHT 125                         // 装甲板高度相对值
