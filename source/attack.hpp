@@ -557,7 +557,7 @@ class Attack : AttackBase {
                 /* 6.修正弹道并计算欧拉角 */
                 DEBUG("correctTrajectory_and_calcEuler start")
                 float bulletSpeed;
-                m_communicator.getBulletSpeed(bulletSpeed);
+                m_communicator.getBulletSpeed(&bulletSpeed);
                 s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed);
                 DEBUG("correctTrajectory_and_calcEuler end")
                 rYaw = s_historyTargets[0].rYaw;

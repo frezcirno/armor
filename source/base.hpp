@@ -116,12 +116,12 @@ struct Camera {
      *@param z
      *三维坐标转欧拉角工具函数
      */
-    static void convertEuler2Pts(cv::Point3d &pts,float *pitch,double x,double z){
+    static void convertEuler2Pts(cv::Point3d &newpts,float pitch,cv::Point3d &pts){
         float _pitch =-pitch;
         _pitch =_pitch > 0 ? _pitch : 360+_pitch;
-        pts.x=x;
-        pts.z=z;
-        pts.y=sin(_pitch/180*CV_PI)*cv::sqrt(pts.x * pts.x + pts.z * pts.z);
+        newpts.x=pts.x;
+        newpts.z=pts.z;
+        newpts.y=sin(_pitch/180*CV_PI)*cv::sqrt(newpts.x * newpts.x + newpts.z * newpts.z);
     }
 
     /**
@@ -130,12 +130,11 @@ struct Camera {
      * 考虑到重力对子弹的影响，对云台所需仰角进行补偿
      */
     void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts,float bulletSpeed) {
-        float pitch,yaw,newpitch;
-        convertPts2Euler(pts,pitch,yaw);
-        float compensateGravity_pitch_tan = tan(pitch/180*CV_PI) + (0.5*9.8*(pts.z / bulletSpeed)*(pts.z / bulletSpeed)) / cos(pitch/180*CV_PI);
-        newpitch = atan(compensateGravity_pitch_tan)/CV_PI*180;
-        convertEuler2Pts(newPts,newpitch,pts.x,pts.z);
-        
+        float _pitch,_yaw,_newpitch;
+        convertPts2Euler(pts,&_yaw,&_pitch);
+        float compensateGravity_pitch_tan = tan(_pitch/180*CV_PI) + (0.5*9.8*(pts.z / bulletSpeed)*(pts.z / bulletSpeed)) / cos(_pitch/180*CV_PI);
+        _newpitch = atan(compensateGravity_pitch_tan)/CV_PI*180;
+        convertEuler2Pts(newPts,_newpitch,pts);
     }
 } stCamera("../data/camera6mm.xml");
 
@@ -189,6 +188,7 @@ struct Target {
     cv::Point3d ptsInShoot;                  // 物体在经过弹道修正后的云台坐标系下坐标
     float rPitch;                            // 相对Pitch值, 发给电控
     float rYaw;                              // 相对Yaw值, 发给电控
+    float bulletSpeed;                       // 子弹速度
     int rTick;                               // 相对帧编号
     emTargetType type;                       // TARGET_SMALL, TARGET_TARGET
 
