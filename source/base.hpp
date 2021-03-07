@@ -82,7 +82,6 @@ struct Camera {
     cv::Mat camMat;
     cv::Mat distCoeffs;
     cv::Mat m_ABC_x, m_ABC_y;
-    float bullet_speed;                     // 子弹速度
 
     /**
      * @param path 相机参数文件路径
@@ -130,14 +129,13 @@ struct Camera {
      * @param newPts 修正后坐标值
      * 考虑到重力对子弹的影响，对云台所需仰角进行补偿
      */
-    void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts) {
-            getBulletSpeed(bullet_speed);
-            float pitch,yaw,newpitch;
-            convertPts2Euler(pts,pitch,yaw);
-            float compensateGravity_pitch_tan = tan(pitch/180*CV_PI) + (0.5*9.8*(pts.z / bullet_speed)*(pts.z / bullet_speed)) / cos(pitch/180*CV_PI);
-            newpitch = atan(compensateGravity_pitch_tan)/CV_PI*180;
-            convertEuler2Pts(newPts,newpitch,pts.x,pts.z);
-        }
+    void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts,float bulletSpeed) {
+        float pitch,yaw,newpitch;
+        convertPts2Euler(pts,pitch,yaw);
+        float compensateGravity_pitch_tan = tan(pitch/180*CV_PI) + (0.5*9.8*(pts.z / bulletSpeed)*(pts.z / bulletSpeed)) / cos(pitch/180*CV_PI);
+        newpitch = atan(compensateGravity_pitch_tan)/CV_PI*180;
+        convertEuler2Pts(newPts,newpitch,pts.x,pts.z);
+        
     }
 } stCamera("../data/camera6mm.xml");
 
@@ -224,7 +222,7 @@ struct Target {
         this->m_rotY = t.m_rotY;
         this->m_rotX = t.m_rotX;
         this->vInGimbal3d = t.vInGimbal3d;
-        this->bullet_speed=t.bullet_speed;
+        this->bulletSpeed=t.bulletSpeed;
         return *this;
     }
 
@@ -385,9 +383,9 @@ struct Target {
 
     /**
      */
-    void correctTrajectory_and_calcEuler() {
+    void correctTrajectory_and_calcEuler(float bulletSpeed) {
         /* 弹道修正, TODO */
-        stCamera.correctTrajectory(ptsInGimbal, ptsInShoot);  //重力补偿修正
+        stCamera.correctTrajectory(ptsInGimbal, ptsInShoot,bulletSpeed);  //重力补偿修正
         DEBUG("stCamera.correctTrajectory")
         /* 计算欧拉角 */
         Camera::convertPts2Euler(ptsInShoot, &rYaw, &rPitch);  //计算Pitch,Yaw传递给电控

@@ -90,7 +90,7 @@ class Communicator {
     std::atomic_int m_WorkMode;  // 当前工作模式: 摸鱼, 自瞄, 大风车
     std::deque<float> m_gYaws;
     std::deque<float> m_gPitches;
-    std::deque<float> m_bullet_speed;
+    std::deque<float> m_bulletSpeed;
     std::thread m_receiveThread;  // 接收线程
     std::atomic_bool m_letStop;   // 暂停接收线程
 
@@ -180,12 +180,16 @@ class Communicator {
 
     /**
      * 获得最新的子弹速度
-    * @param bullet_speed 存放子弹速度
+    * @param bulletSpeed 存放子弹速度
     * @param delay 取第 delay 个值, [0-最新, 1-第二新, ...]
     */
-    void getBulletSpeed(float *bullet_speed,uint8_t delay = 0) {
+    void getBulletSpeed(float *bulletSpeed,uint8_t delay = 0) {
+        if(m_isDisable){
         std::lock_guard<std::mutex> lockGuard(m_mutex);
-        *bullet_speed = m_bullet_speed[delay];
+        *bulletSpeed = m_bulletSpeed[delay];
+        }else{
+            *bulletSpeed=0.0;
+        }
     }
 
     void enableReceiveGlobalAngle(bool enable = true) {
@@ -309,13 +313,13 @@ class CommunicatorSerial : public Communicator {
 
                                 if (m_isEnableReceiveGlobalAngle) {
                                     std::lock_guard<std::mutex> lock(m_mutex);
-                                    m_bullet_speed.emplace_front(frame.speed);
+                                    m_bulletSpeed.emplace_front(frame.speed);
                                     m_gYaws.emplace_front(frame.yaw / M_PI * 180);  // 转化成角度
                                     m_gPitches.emplace_front(frame.pitch / M_PI * 180);
-                                    if(m_bullet_speed.size() >10) m_bullet_speed.pop_back();
+                                    if(m_bulletSpeed.size() >10) m_bulletSpeed.pop_back();
                                     if (m_gYaws.size() > 10) m_gYaws.pop_back();
                                     if (m_gPitches.size() > 10) m_gPitches.pop_back();
-                                    printf("receive (yaw, pitch,bullet_speed) = (%3.2f, %3.2f,%3.2f)\n", frame.yaw, frame.pitch,frame.speed);
+                                    printf("receive (yaw, pitch,bulletSpeed) = (%3.2f, %3.2f,%3.2f)\n", frame.yaw, frame.pitch,frame.speed);
                                 }
                                 /* 更新值 end */
                             }
