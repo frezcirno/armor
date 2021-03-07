@@ -510,8 +510,8 @@ class PID {
         return limit(out, -5, 5);  //out>=-5
     }
 
-    double clear() {
-        isFirst.exchange(true);
+    bool clear() {
+        return isFirst.exchange(true);
     }
 };
 

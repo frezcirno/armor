@@ -278,15 +278,15 @@ class Attack : AttackBase {
         GraphDef graph_def;
         Status status = ReadBinaryProto(Env::Default(), model_path, &graph_def);  //读取Graph, 如果是文本形式的pb,使用ReadTextProto
         if (!status.ok())
-            std::cout << status.ToString() << std::endl;
+            std::cout << "[TensorFlow] " << status.ToString() << std::endl;
         else
-            std::cout << "Load graph protobuf successfully" << std::endl;
+            std::cout << "[TensorFlow] " << "Load graph protobuf successfully" << std::endl;
         /* 将模型设置到创建的Session里 */
         status = m_session->Create(graph_def);
         if (!status.ok())
             std::cout << status.ToString() << std::endl;
         else
-            std::cout << "Add graph to session successfully" << std::endl;
+            std::cout << "[TensorFlow] " << "Add graph to session successfully" << std::endl;
     }
     /**
      * @param isSave 是否保存样本图片

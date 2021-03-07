@@ -10,7 +10,7 @@
 #include <windmill/Windmill.hpp>
 
 int main() {
-    std::cout << "Using OpenCV " << CV_VERSION << std::endl;
+    std::cout << "[General] Using OpenCV " << CV_VERSION << std::endl;
 
     int threadNum = armor::stConfig.get<int>("auto.thread-num");  //线程数初始化
 
@@ -109,7 +109,7 @@ int main() {
                 })) {
                     /* 刷新主线程窗口图像 */
                     isClient.update(frame, int(timeStamp / 1000));
-                    isClient.addText(cv::format("ts %lld", timeStamp));
+                    isClient.addText(cv::format("ts %ld", timeStamp));
                     isClient.addText(cv::format("1/fps %2.2f ms", cap->getCurrentInterval() / 1000.0));
                     isClient.addText(cv::format("send %2.2f ms", communicator.getCurrentInterval() / 1000.0));
 

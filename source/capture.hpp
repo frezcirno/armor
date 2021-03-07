@@ -37,7 +37,7 @@ typedef enum {
 class Capture {
   protected:
     std::mutex m_mutex;
-    std::atomic<int64> m_currentInterval;  // us
+    std::atomic<int64_t> m_currentInterval;  // us
 
     /* 录视频相关 */
     cv::VideoWriter m_writer;
@@ -71,13 +71,13 @@ class Capture {
      * 初始化摄像头
      * @return
      */
-    virtual bool init() {}
+    virtual bool init() { return true; }
 
     /**
      * 摄像头开始传输图像
      * @return
      */
-    virtual bool play() {}
+    virtual bool play() { return true; }
 
     /**
      * 初始化图像数据结构
@@ -149,7 +149,7 @@ class Capture {
      * 查询是否打开摄像头
      * @return
      */
-    virtual bool isOpened() {}
+    virtual bool isOpened() { return true; }
 
     /**
      * 阻塞获取摄像头, 多线程可用
@@ -158,13 +158,13 @@ class Capture {
      * @param func
      * @return 是否有效
      */
-    virtual bool wait_and_get(cv::Mat &frame, int64 &timeStamp, const std::function<void()> &func) {}
+    virtual bool wait_and_get(cv::Mat &frame, int64_t &timeStamp, const std::function<void()> &func) { return true; }
 
     /**
      * 获得当前 wait_and_get 函数获得的图像时间间隔
      * @return 采集时间间隔us
      */
-    int64 getCurrentInterval() { return m_currentInterval.load(); }
+    int64_t getCurrentInterval() { return m_currentInterval.load(); }
 
     /**
      * 释放摄像头, 析构时自动调用
@@ -178,8 +178,8 @@ class Capture {
 class LajiVision : public Capture {
   private:
     cv::VideoCapture m_cap;
-    int64 m_startTickCount;
-    int64 m_currentTimeStamp;
+    int64_t m_startTickCount;
+    int64_t m_currentTimeStamp;
 
   public:
     explicit LajiVision()
@@ -195,10 +195,14 @@ class LajiVision : public Capture {
         const std::string filename = stConfig.get<std::string>("cap.video-path");
         if (filename.find(".avi") != cv::String::npos ||
             filename.find(".mp4") != cv::String::npos) {
-            PRINT_INFO("open a video\n");
-            m_cap.open(filename, cv::CAP_FFMPEG);
+            if (m_cap.open(filename, cv::CAP_FFMPEG)) {
+                PRINT_INFO("[Capture] Open a video\n");
+            } else {
+                PRINT_ERROR("[Capture] Open a video failed!\n");
+                exit(-1);
+            }
         } else {
-            PRINT_INFO("open the laji camera\n");
+            PRINT_INFO("[Capture] Open the laji camera\n");
             m_cap.open(filename, cv::CAP_V4L2);
             m_cap.set(cv::CAP_PROP_FOURCC,
                 cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
@@ -246,14 +250,14 @@ class LajiVision : public Capture {
      * @param func 获得图像时需要调用的函数
      * @return false = 获取失败
      */
-    bool wait_and_get(cv::Mat &frame, int64 &timeStamp, const std::function<void()> &func) override {
+    bool wait_and_get(cv::Mat &frame, int64_t &timeStamp, const std::function<void()> &func) override {
         std::lock_guard<std::mutex> lockGuard(m_mutex);
         m_cap >> frame;
         resize(frame, frame, cv::Size(1920, 1280));
 
         // frame = frame(cv::Rect(stFrameInfo.offset, stFrameInfo.size));
         func();
-        timeStamp = int64(1000.0 * 1000.0 * (cv::getTickCount() - m_startTickCount) / cv::getTickFrequency());
+        timeStamp = int64_t(1000.0 * 1000.0 * (cv::getTickCount() - m_startTickCount) / cv::getTickFrequency());
         m_currentInterval.exchange(timeStamp - m_currentTimeStamp);
         m_currentTimeStamp = timeStamp;
         return frame.data != nullptr;
@@ -277,7 +281,7 @@ class MindVision : public Capture {
     BYTE *m_pbyBuffer;
     unsigned char *m_pRgbBuffer;
     std::atomic_bool m_isOpened;
-    int64 m_currentTimeStamp;  // us
+    int64_t m_currentTimeStamp;  // us
 
     /**
      * 相机连接事件回调函数
@@ -385,8 +389,7 @@ class MindVision : public Capture {
         } else
             printf("[MindVision] Camera Init state = %d\n", iStatus);
 
-        /* 获得相机的特性描述结构体。该结构体中包含了相机可设置的各种参数的范围信息。决定了相关函数的参数
-     */
+        /* 获得相机的特性描述结构体。该结构体中包含了相机可设置的各种参数的范围信息。决定了相关函数的参数 */
         tSdkCameraCapbility tCapability;  // 设备描述信息
         CameraGetCapability(m_hCamera, &tCapability);
         m_pRgbBuffer =
@@ -411,6 +414,8 @@ class MindVision : public Capture {
         stFrameInfo.size = cv::Size(1280, 1024);
         stFrameInfo.offset = cv::Point2i(0, 0);
         printf("[MindVision] complete init\n");
+
+        return true;
     }
 
     using Capture::setCaptureROI;
@@ -505,7 +510,7 @@ class MindVision : public Capture {
      * @param func 获得图像时需要调用的自定义函数
      * @return false = 获取失败
      */
-    bool wait_and_get(cv::Mat &frame, int64 &timeStamp, const std::function<void()> &func) override {
+    bool wait_and_get(cv::Mat &frame, int64_t &timeStamp, const std::function<void()> &func) override {
         std::lock_guard<std::mutex> lock(m_mutex);
         tSdkFrameHead sFrameInfo;
         UINT low;
@@ -517,7 +522,7 @@ class MindVision : public Capture {
             func();
 
             /* cvtColor图像转换, sFrameInfo.uiMediaType == CAMERA_MEDIA_TYPE_BAYGB8 */
-            int64 t = cv::getTickCount();
+            int64_t t = cv::getTickCount();
             cv::Mat by8Mat(cv::Size(sFrameInfo.iWidth, sFrameInfo.iHeight), CV_8UC1,
                 m_pbyBuffer);
             if (m_pbyBuffer == nullptr) {
@@ -594,7 +599,7 @@ class DaHuaVision : public Capture {
     CFrame m_frame;                // 相机的块数据帧
     IStreamSourcePtr streamPtr;    // 流对象
     std::atomic_bool m_isOpened;   // 相机是否打开
-    int64 m_currentTimeStamp = 0;  // us
+    int64_t m_currentTimeStamp = 0;  // us
 
   public:
     explicit DaHuaVision() : m_isOpened(false), m_currentTimeStamp(0){};
@@ -610,7 +615,7 @@ class DaHuaVision : public Capture {
         // getGrabMode(cameraSptr, bContious);
         // triggerSoftware(cameraSptr);
 
-        // int64_t nWidth, nHeight;
+        // int64_t_t nWidth, nHeight;
         // setResolution(cameraSptr, 1280, 1024);
         // getResolution(cameraSptr, nWidth, nHeight);
         // std::cout << "getResolution: " << nWidth << " " << nHeight << endl;
@@ -620,7 +625,7 @@ class DaHuaVision : public Capture {
         // getMaxResolution(cameraSptr, nWidth, nHeight);
         // cout << "getMaxResolution: " << nWidth << " " << nHeight << endl;
 
-        // int64_t nX, nY, nROIWidth, nROIHeight;
+        // int64_t_t nX, nY, nROIWidth, nROIHeight;
         // setROI(cameraSptr, 0, 0, 1280, 1024);
         // getROI(cameraSptr, nX, nY, nROIWidth, nROIHeight);
         // std::cout << "getROI: " << nX << " " << nY << " " << nROIWidth << " " <<
@@ -743,6 +748,8 @@ class DaHuaVision : public Capture {
         }
 
         printf("[DaHua] complete init\n");
+
+        return true;
     }
 
     /**
@@ -822,7 +829,7 @@ class DaHuaVision : public Capture {
      * @param func 获得图像时需要调用的自定义函数
      * @return false = 获取失败
      */
-    bool wait_and_get(cv::Mat &frame, int64 &timeStamp, const std::function<void()> &func) override {
+    bool wait_and_get(cv::Mat &frame, int64_t &timeStamp, const std::function<void()> &func) override {
         std::lock_guard<std::mutex> lock(m_mutex);
         UINT low;
         UINT high;
@@ -832,7 +839,7 @@ class DaHuaVision : public Capture {
             func();
 
             /* cvtColor图像转换, sFrameInfo.uiMediaType == CAMERA_MEDIA_TYPE_BAYGB8 */
-            int64 t = cv::getTickCount();
+            int64_t t = cv::getTickCount();
 
             cv::Mat by8Mat(cv::Size(m_frame.getImageWidth(), m_frame.getImageHeight()), CV_8UC1, (uchar *)m_frame.getImage());
             cv::cvtColor(by8Mat, frame, cv::COLOR_BayerBG2BGR_EA);
