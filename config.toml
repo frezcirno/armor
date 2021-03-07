@@ -2,19 +2,6 @@
 [attack]
     attack-color = 'red' # 击打颜色, ['red', 'blue']
 
-# 弹道
-[curve]
-    test-shoot = false   # true = 使用以下两个固定值, false = 按拟合值计算
-    test-dy = -500         # 实时更新, 整数
-    test-dx = -50         # 实时更新, 整数
-    use-linear = false  
-    # o---- > +x
-    # |
-    # |
-    # Ⅴ +y
-    dy = [[1412, -55], [2100, -75], [3110, -95], [4100, -155]]
-    dx = [[1412, 45], [2100, 45], [3110, 45], [4100, 45]]
-
 [communicator]
     enable = true
     serial-port = '/dev/USBsp0'
