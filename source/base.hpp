@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <opencv2/opencv.hpp>
-#include "communicator.hpp"
 #include <toml.h>
 
 #include "semaphore.hpp"
