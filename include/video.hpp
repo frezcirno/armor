@@ -1235,6 +1235,7 @@ static int32_t setOutputTime(ICameraPtr &cameraSptr, int nTimeMS)
         printf("set userOutputValue fail.\n");
         return -1;
     }
+    return 0;
 }
 
 /* 44、获取外部光源曝光时间（输出信号的时间由软件侧控制） */

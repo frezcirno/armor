@@ -107,20 +107,19 @@ struct Camera {
         *pPitch = -_pitch;
         *pYaw = _yaw > 180 ? _yaw - 360 : _yaw;
     }
-    
+
     /**
-     *@param pts 三维坐标
-     *@param pitch
-     *@param x
-     *@param z
-     *三维坐标转欧拉角工具函数
+     * @param newpts 新的三维坐标
+     * @param pitch 新的pitch
+     * @param pts 原三维坐标
+     * 三维坐标修改pitch分量工具函数
      */
-    static void convertEuler2Pts(cv::Point3d &newpts,float pitch,cv::Point3d &pts){
-        float _pitch =-pitch;
-        _pitch =_pitch > 0 ? _pitch : 360+_pitch;
-        newpts.x=pts.x;
-        newpts.z=pts.z;
-        newpts.y=sin(_pitch/180*CV_PI)*cv::sqrt(newpts.x * newpts.x + newpts.z * newpts.z);
+    static void convertEuler2Pts(cv::Point3d &newpts, float pitch, cv::Point3d &pts) {
+        float _pitch = -pitch;
+        _pitch = _pitch > 0 ? _pitch : 360 + _pitch;
+        newpts.x = pts.x;
+        newpts.z = pts.z;
+        newpts.y = sin(_pitch / 180 * CV_PI) * cv::sqrt(newpts.x * newpts.x + newpts.z * newpts.z);
     }
 
     /**
@@ -128,12 +127,12 @@ struct Camera {
      * @param newPts 修正后坐标值
      * 考虑到重力对子弹的影响，对云台所需仰角进行补偿
      */
-    void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts,float bulletSpeed) {
-        float _pitch,_yaw,_newpitch;
-        convertPts2Euler(pts,&_yaw,&_pitch);
-        float compensateGravity_pitch_tan = tan(_pitch/180*CV_PI) + (0.5*9.8*(pts.z / bulletSpeed)*(pts.z / bulletSpeed)) / cos(_pitch/180*CV_PI);
-        _newpitch = atan(compensateGravity_pitch_tan)/CV_PI*180;
-        convertEuler2Pts(newPts,_newpitch,pts);
+    void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts, float bulletSpeed) {
+        float _pitch, _yaw, _newpitch;
+        convertPts2Euler(pts, &_yaw, &_pitch);
+        float compensateGravity_pitch_tan = tan(_pitch / 180 * CV_PI) + (0.5 * 9.8 * (pts.z / bulletSpeed) * (pts.z / bulletSpeed)) / cos(_pitch / 180 * CV_PI);
+        _newpitch = atan(compensateGravity_pitch_tan) / CV_PI * 180;
+        convertEuler2Pts(newPts, _newpitch, pts);
     }
 } stCamera("../data/camera6mm.xml");
 
@@ -191,37 +190,37 @@ struct Target {
     int rTick;                               // 相对帧编号
     emTargetType type;                       // TARGET_SMALL, TARGET_TARGET
 
-    cv::Mat rv, // 旋转向量
-        tv,     // 偏移向量
-        rvMat;  // 旋转矩阵
+    cv::Mat rv,  // 旋转向量
+        tv,      // 偏移向量
+        rvMat;   // 旋转矩阵
 
     cv::Mat m_rotY, m_rotX;  // 旋转到绝对坐标系
     cv::Point3d vInGimbal3d;
 
     explicit Target() : rPitch(0), rYaw(0), rTick(0), type(TARGET_SMALL) {}
 
-    Target(const Target&) = default;
+    Target(const Target &) = default;
 
-    Target operator=(const Target& t) {
-        this->pixelPts2f = t.pixelPts2f;    
-        this->pixelCenterPt2f = t.pixelCenterPt2f;            
-        this->pixelPts2f_Ex = t.pixelPts2f_Ex; 
-        this->ptsInGimbal = t.ptsInGimbal;                
-        this->ptsInWorld = t.ptsInWorld;                 
-        this->ptsInWorld_Predict = t.ptsInWorld_Predict;         
-        this->ptsInGimbal_Predict = t.ptsInGimbal_Predict;        
-        this->ptsInShoot = t.ptsInShoot;                 
-        this->rPitch = t.rPitch;                           
-        this->rYaw = t.rYaw;                             
-        this->rTick = t.rTick;                              
-        this->type = t.type;                      
+    Target operator=(const Target &t) {
+        this->pixelPts2f = t.pixelPts2f;
+        this->pixelCenterPt2f = t.pixelCenterPt2f;
+        this->pixelPts2f_Ex = t.pixelPts2f_Ex;
+        this->ptsInGimbal = t.ptsInGimbal;
+        this->ptsInWorld = t.ptsInWorld;
+        this->ptsInWorld_Predict = t.ptsInWorld_Predict;
+        this->ptsInGimbal_Predict = t.ptsInGimbal_Predict;
+        this->ptsInShoot = t.ptsInShoot;
+        this->rPitch = t.rPitch;
+        this->rYaw = t.rYaw;
+        this->rTick = t.rTick;
+        this->type = t.type;
         this->rv = t.rv;
         this->tv = t.tv;
         this->rvMat = t.rvMat;
         this->m_rotY = t.m_rotY;
         this->m_rotX = t.m_rotX;
         this->vInGimbal3d = t.vInGimbal3d;
-        this->bulletSpeed=t.bulletSpeed;
+        this->bulletSpeed = t.bulletSpeed;
         return *this;
     }
 
@@ -384,7 +383,7 @@ struct Target {
      */
     void correctTrajectory_and_calcEuler(float bulletSpeed) {
         /* 弹道修正, TODO */
-        stCamera.correctTrajectory(ptsInGimbal, ptsInShoot,bulletSpeed);  //重力补偿修正
+        stCamera.correctTrajectory(ptsInGimbal, ptsInShoot, bulletSpeed);  //重力补偿修正
         DEBUG("stCamera.correctTrajectory")
         /* 计算欧拉角 */
         Camera::convertPts2Euler(ptsInShoot, &rYaw, &rPitch);  //计算Pitch,Yaw传递给电控

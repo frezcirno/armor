@@ -12,11 +12,14 @@
 #include "thread"
 #include "utility"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-attributes"
 #include "google/protobuf/wrappers.pb.h"
 #include "tensorflow/core/framework/graph.pb.h"
 #include "tensorflow/core/framework/tensor.h"
 #include "tensorflow/core/public/session.h"
 #include "tensorflow/core/util/command_line_flags.h"
+#pragma GCC diagnostic pop
 
 using tensorflow::string;
 using tensorflow::Tensor;
@@ -55,13 +58,13 @@ class Attack : AttackBase {
   private:
     Communicator &m_communicator;
     ImageShowClient &m_is;
-    cv::Mat m_bgr;
+    cv::Mat m_bgr;      // ROI图
     cv::Mat m_bgr_raw;  // 原图
     // 目标
     std::vector<Target> m_preTargets;  // 预检测目标
     std::vector<Target> m_targets;     // 本次有效目标集合
     // 开小图
-    cv::Point2i m_startPt;   //
+    cv::Point2i m_startPt;   // ROI左上角点坐标
     bool m_isEnablePredict;  // 是否开预测
 
     int64_t m_currentTimeStamp;  // 当前时间戳
@@ -85,7 +88,6 @@ class Attack : AttackBase {
   private:
     /**
      * 通过hsv筛选和进行预处理获得装甲板
-     * @change bgrChecked 处理过的黑白图片
      * @change m_preTargets 预检测得到的装甲板列表, 可能有两个装甲板共享一个灯条的情况发生
      */
     void m_preDetect() {
@@ -113,7 +115,7 @@ class Attack : AttackBase {
         /* 寻找边缘，并圈出contours: bgrChecked -> contours */
         std::vector<std::vector<cv::Point2i>> contours;
         cv::findContours(bgrChecked, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
-        m_is.addEvent("contours", contours);
+        m_is.addEvent("contours", contours, m_startPt);
 
         /* 对contours进行筛选 */
         std::vector<Light> lights;
@@ -191,7 +193,7 @@ class Attack : AttackBase {
             }
         }
         m_is.addEvent("preTargets", m_preTargets);
-	std::cout << "preTargets: "<< m_preTargets.size() << std::endl;
+        std::cout << "preTargets: " << m_preTargets.size() << std::endl;
     }
     int m_cropNameCounter = 0;
 
@@ -280,13 +282,15 @@ class Attack : AttackBase {
         if (!status.ok())
             std::cout << "[TensorFlow] " << status.ToString() << std::endl;
         else
-            std::cout << "[TensorFlow] " << "Load graph protobuf successfully" << std::endl;
+            std::cout << "[TensorFlow] "
+                      << "Load graph protobuf successfully" << std::endl;
         /* 将模型设置到创建的Session里 */
         status = m_session->Create(graph_def);
         if (!status.ok())
             std::cout << status.ToString() << std::endl;
         else
-            std::cout << "[TensorFlow] " << "Add graph to session successfully" << std::endl;
+            std::cout << "[TensorFlow] "
+                      << "Add graph to session successfully" << std::endl;
     }
     /**
      * @param isSave 是否保存样本图片
@@ -329,7 +333,7 @@ class Attack : AttackBase {
                 continue;
         }
         m_is.addClassifiedTargets("After Classify", m_targets);
-	std::cout << "Targets: " << m_targets.size() << std::endl;
+        std::cout << "Targets: " << m_targets.size() << std::endl;
         DEBUG("m_classify end")
     }
     /**
@@ -471,7 +475,7 @@ class Attack : AttackBase {
         m_currentTimeStamp = timeStamp;
         m_targets.clear();
         m_preTargets.clear();
-        m_startPt = cv::Point(0, 0);
+        m_startPt = cv::Point();
 
         /* 如果有历史打击对象 */
         if (s_historyTargets.size() >= 2 && s_historyTargets[0].rTick <= 10) {
@@ -480,6 +484,8 @@ class Attack : AttackBase {
             m_is.addEvent("Bounding Rect", latestShootRect);
             m_bgr = m_bgr(latestShootRect);
             m_startPt = latestShootRect.tl();
+            // m_is.addText(cv::format("m_startPt.x = %d", m_startPt.x));
+            // m_is.addText(cv::format("m_startPt.y = %d", m_startPt.y));
         }
 
         /* 2.预检测 */
@@ -511,8 +517,8 @@ class Attack : AttackBase {
 
             /* 计算世界坐标参数，转换到世界坐标系 */
             for (auto &tar : m_targets) {
-                tar.calcWorldParams(); // 计算云台坐标系坐标
-                tar.convert2WorldPts(-gYaw, gPitch); // 计算世界坐标系坐标
+                tar.calcWorldParams();                // 计算云台坐标系坐标
+                tar.convert2WorldPts(-gYaw, gPitch);  // 计算世界坐标系坐标
             }
             /* 4.目标匹配 */
             emSendStatusA statusA = m_match();
@@ -578,10 +584,10 @@ class Attack : AttackBase {
                     s_historyTargets[0].ptsInGimbal.z / 1000.0));
                 m_is.addText(cv::format("rPitch %.3f", rPitch));
                 m_is.addText(cv::format("rYaw   %.3f", rYaw));
-                m_is.addText(cv::format("gYaw   %.3f", gYaw));
-		std::cout << "gYaw:   " << gYaw << std::endl;
-		std::cout << "gPitch: " << gPitch << std::endl;
-		std::cout << "rYaw:   " << rYaw << std::endl;
+                std::cout << "gYaw:   " << gYaw << std::endl;
+                std::cout << "gPitch: " << gPitch << std::endl;
+                std::cout << "rPitch:   " << rPitch << std::endl;
+                std::cout << "rYaw:   " << rYaw << std::endl;
                 m_is.addText(cv::format("rYaw + gYaw   %.3f", rYaw - gYaw));
             }
             /* 8.通过PID对yaw进行修正（参数未修改） */

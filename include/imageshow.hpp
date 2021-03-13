@@ -60,8 +60,8 @@ std::atomic_bool ImageShowBase::s_isAverageCostPrint(false);
 class ImageShowClient : ImageShowBase {
   private:
     int m_id;  // 当前线程index
-    std::vector<std::pair<cv::String, int64>> m_clocks;
-    int64 m_startClock;
+    std::vector<std::pair<cv::String, int64_t>> m_clocks;
+    int64_t m_startClock;
     cv::Mat m_frame;
     std::vector<cv::Scalar> m_colorLibrary = {
         // rgb(255, 27, 19)
@@ -266,13 +266,14 @@ class ImageShowClient : ImageShowBase {
      * 绘制轮廓
      * @param eventName
      * @param contours
+     * @param offset (ROI使用)左上角坐标
      */
-    void addContours(const cv::String &eventName, const std::vector<std::vector<cv::Point2i>> &contours) {
+    void addContours(const cv::String &eventName, const std::vector<std::vector<cv::Point2i>> &contours, const cv::Point2i &offset = cv::Point()) {
         if (s_mode == 0 || s_mode == 1)
             return;
         cv::Scalar currentColor = m_getCurrentColor();
         int thickness = 1;
-        cv::drawContours(m_frame, contours, -1, currentColor, thickness);
+        cv::drawContours(m_frame, contours, -1, currentColor, thickness, 8, cv::noArray(), 2147483647, offset);
         m_putMarginText(eventName + cv::format(": %d", int(contours.size())), currentColor, thickness);
     }
 
@@ -280,9 +281,10 @@ class ImageShowClient : ImageShowBase {
      * 绘制轮廓
      * @param eventName
      * @param contours
+     * @param offset
      */
-    void addEvent(const cv::String &eventName, const std::vector<std::vector<cv::Point2i>> &contours) {
-        addContours(eventName, contours);
+    void addEvent(const cv::String &eventName, const std::vector<std::vector<cv::Point2i>> &contours, const cv::Point2i &offset = cv::Point()) {
+        addContours(eventName, contours, offset);
     }
 
     /**
@@ -525,7 +527,7 @@ class ImageShowClient : ImageShowBase {
                 return;
             }
         }
-        std::pair<cv::String, int64> _clock;
+        std::pair<cv::String, int64_t> _clock;
         _clock.first = name;
         _clock.second = cv::getTickCount();
         m_clocks.emplace_back(_clock);

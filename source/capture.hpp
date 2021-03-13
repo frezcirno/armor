@@ -11,9 +11,18 @@
 #include <mutex>
 #include <opencv2/opencv.hpp>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion-null"
 #include "video.hpp"    // dahua
 #include <CameraApi.h>  // mindvision
 //#include <MvCameraControl.h>  // hikvision
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 
 namespace armor {
 /**
