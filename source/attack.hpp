@@ -1,16 +1,18 @@
 #ifndef TJSP_ATTACK_2020_ATTACK_HPP
 #define TJSP_ATTACK_2020_ATTACK_HPP
 
+#include <dirent.h>
+#include <future>
+#include <numeric>
+#include <thread>
+#include <utility>
+
 #include "ThreadPool.h"
 #include "base.hpp"
 #include "capture.hpp"
 #include "communicator.hpp"
-#include "dirent.h"
-#include "future"
 #include "imageshow.hpp"
-#include "numeric"
-#include "thread"
-#include "utility"
+#include "sort/sort.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-attributes"
@@ -21,11 +23,9 @@
 #include "tensorflow/core/util/command_line_flags.h"
 #pragma GCC diagnostic pop
 
-using tensorflow::string;
-using tensorflow::Tensor;
-
 using namespace tensorflow;
 
+// TODO: 把这些静态常量移到配置文件中
 /*模型路径*/
 const string model_path = "../Model/happyModel.pb";
 /*输入输出节点详见ipynb的summary*/
@@ -33,17 +33,22 @@ const string input_name = "input_1:0";
 const string output_name = "y/Sigmoid:0";
 const int fixedSize = 32;
 
+const unsigned int max_age = 1;
+const unsigned int min_hits = 3;
+const double iou_threshold = 0.3;
+
 namespace armor {
 /**
  * 自瞄基类, 多线程共享变量用
  */
 class AttackBase {
   protected:
-    static std::mutex s_mutex;                      // 互斥锁
-    static std::atomic<int64_t> s_latestTimeStamp;  // 已经发送的帧编号
-    static std::deque<Target> s_historyTargets;     // 打击历史, 最新的在头部, [0, 1, 2, 3, ....]
-    static Kalman kalman;                           // 卡尔曼滤波
-    static tensorflow::Session *m_session;
+    static std::mutex s_mutex;                         // 互斥锁
+    static std::atomic<int64_t> s_latestTimeStamp;     // 已经发送的帧编号
+    static std::deque<Target> s_historyTargets;        // 打击历史, 最新的在头部, [0, 1, 2, 3, ....]
+    static Kalman kalman;                              // 卡尔曼滤波
+    static tensorflow::Session *m_session;             // 分类器  TODO: 名字前缀，考虑改成智能指针
+    static std::unique_ptr<sort::SORT> s_sortTracker;  // DeepSORT 跟踪
 };
 /* 类静态成员初始化 */
 std::mutex AttackBase::s_mutex;
@@ -51,6 +56,7 @@ std::atomic<int64_t> AttackBase::s_latestTimeStamp(0);
 std::deque<Target> AttackBase::s_historyTargets;
 Kalman AttackBase::kalman;
 tensorflow::Session *AttackBase::m_session;
+std::unique_ptr<sort::SORT> AttackBase::s_sortTracker(std::make_unique<sort::SORT>(iou_threshold, max_age, min_hits));
 /**
  * 自瞄主类
  */
@@ -77,7 +83,7 @@ class Attack : AttackBase {
                                                                                        m_is(isClient),
                                                                                        m_isEnablePredict(true), m_currentTimeStamp(0), m_pid(pid), m_isUseDialte(false) {
         m_isUseDialte = stConfig.get<bool>("auto.is-dilate");
-        NewSession(SessionOptions(), &m_session);
+        NewSession(SessionOptions(), &m_session);  // TODO: 基类变量的初始化应该在基类内完成
         init_tf_session();
     }
     ~Attack() {
@@ -195,7 +201,7 @@ class Attack : AttackBase {
         m_is.addEvent("preTargets", m_preTargets);
         std::cout << "preTargets: " << m_preTargets.size() << std::endl;
     }
-    int m_cropNameCounter = 0;
+    int m_cropNameCounter = 0;  // TODO: magic variable
 
     /**
      * @param image 图片
@@ -273,7 +279,6 @@ class Attack : AttackBase {
 
     /**
      * 读取模型并设置到session中
-     * @return input
      */
     void init_tf_session() {
         /* 从pb文件中读取模型 */
@@ -293,8 +298,9 @@ class Attack : AttackBase {
                       << "Add graph to session successfully" << std::endl;
     }
     /**
-     * @param isSave 是否保存样本图片
      * 基于tensorflow的分类器
+     * @param isSave 是否保存样本图片
+     * @change m_targets 经过分类器的装甲板
      */
     void m_classify_single_tensor(bool isSave = false) {
         if (m_preTargets.empty())
@@ -302,10 +308,11 @@ class Attack : AttackBase {
         tensorflow::Tensor input = Tensor(DT_FLOAT, TensorShape({1, fixedSize, fixedSize, 1}));
 
         for (auto &_tar : m_preTargets) {
-            cv::Rect tmp = cv::boundingRect(_tar.pixelPts2f_Ex);
+            auto pixelPts2f_Ex_array = _tar.pixelPts2f_Ex.toArray();
+            cv::Rect tmp = cv::boundingRect(pixelPts2f_Ex_array);
             cv::Mat tmp2 = m_bgr_raw(tmp).clone();
             /* 将图片变成目标大小 */
-            cv::Mat transMat = cv::getPerspectiveTransform(_tar.pixelPts2f_Ex, _tar.pixelPts2f_Ex);
+            cv::Mat transMat = cv::getPerspectiveTransform(pixelPts2f_Ex_array, pixelPts2f_Ex_array);
             cv::Mat _crop;
             /* 投影变换 */
             cv::warpPerspective(tmp2, _crop, transMat, cv::Size(tmp2.size()));
@@ -336,8 +343,10 @@ class Attack : AttackBase {
         std::cout << "Targets: " << m_targets.size() << std::endl;
         DEBUG("m_classify end")
     }
+
     /**
      * 击打策略函数
+     * @change s_historyTargets 在数组开头添加本次打击的目标
      * @return emSendStatusA 
      */
     emSendStatusA m_match() {
@@ -350,6 +359,15 @@ class Attack : AttackBase {
                 break;
             }
         }
+        /* Tracker 更新 */
+        // std::vector<sort::BBox> bboxs;
+        // for (auto &&tar : m_targets)
+        // {
+        //     bboxs.emplace_back(sort::BBox(tar.pixelPts2f.toArray()));
+        // }
+
+        // auto tracks = s_sortTracker->update(bboxs);
+
         /* 选择本次打击目标 */
         if (s_historyTargets.empty()) {
             /* case A: 之前没选择过打击目标 */
@@ -369,15 +387,17 @@ class Attack : AttackBase {
         else {
             /* case B: 之前选过打击目标了, 得找到一样的目标 */
             PRINT_INFO("++++++++++++++++ 开始寻找上一次目标 ++++++++++++++++++++\n");
+
             double distance = 0xffffffff;
             int closestElementIndex = -1;
+            auto history_array = s_historyTargets[0].pixelPts2f.toArray();
             for (size_t i = 0; i < m_targets.size(); ++i) {
+                auto target_array = m_targets[i].pixelPts2f.toArray();
                 /* 进行轮廓匹配，所得为0～1，数值越小越好*/
-                double distanceA = cv::matchShapes(m_targets[i].pixelPts2f, s_historyTargets[0].pixelPts2f,
-                    cv::CONTOURS_MATCH_I3, 0.0);
+                double distanceA = cv::matchShapes(target_array, history_array, cv::CONTOURS_MATCH_I3, 0.0);
                 /* 获取图像矩 */
-                cv::Moments m_1 = cv::moments(m_targets[i].pixelPts2f);
-                cv::Moments m_2 = cv::moments(s_historyTargets[0].pixelPts2f);
+                cv::Moments m_1 = cv::moments(target_array);
+                cv::Moments m_2 = cv::moments(history_array);
                 PRINT_WARN("distanceA = %f\n", distanceA);
                 /* 进行matchShaoes的阈值限定，并保证归一化中心矩同号 */
                 if (distanceA > 0.5 ||
@@ -438,7 +458,7 @@ class Attack : AttackBase {
      * 图像扩展ROI
      */
     void getBoundingRect(Target &tar, cv::Rect &rect, cv::Size &size, bool extendFlag = false) {
-        rect = cv::boundingRect(s_historyTargets[0].pixelPts2f_Ex);
+        rect = cv::boundingRect(s_historyTargets[0].pixelPts2f_Ex.toArray());
 
         if (extendFlag) {
             rect.x -= int(rect.width * 4);

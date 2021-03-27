@@ -174,21 +174,32 @@ typedef enum {
 } emTargetType;
 
 /**
+ * 四边形数据结构
  */
-struct Target {
-    std::vector<cv::Point2f> pixelPts2f;     // 硬件ROI图幅下的像素坐标
-    cv::Point2f pixelCenterPt2f;             // 像素坐标中心
-    std::vector<cv::Point2f> pixelPts2f_Ex;  // 扩展像素坐标
-    cv::Point3d ptsInGimbal;                 // 物体在云台坐标系下坐标(相机坐标系经过固定变换后得到)
-    cv::Point3d ptsInWorld;                  // 物体在世界坐标系下坐标
-    cv::Point3d ptsInWorld_Predict;          // 物体在预测后的世界坐标系下坐标, 不开启预测的时候和 ptsInWorld 一样
-    cv::Point3d ptsInGimbal_Predict;         // 物体在预测后的云台坐标系下坐标, 不开启预测的时候和 ptsInGimbal 一样
-    cv::Point3d ptsInShoot;                  // 物体在经过弹道修正后的云台坐标系下坐标
-    float rPitch;                            // 相对Pitch值, 发给电控
-    float rYaw;                              // 相对Yaw值, 发给电控
-    float bulletSpeed;                       // 子弹速度
-    int rTick;                               // 相对帧编号
-    emTargetType type;                       // TARGET_SMALL, TARGET_TARGET
+template <typename T>
+struct Quadrilateral {
+    cv::Point_<T> tl, tr, bl, br;
+    std::vector<cv::Point_<T>> toArray() const {
+        return {tl, bl, br, tr};
+    }
+};
+
+/**
+ */
+struct Target { // TODO: 结构体太大了，尝试优化不必要的变量
+    Quadrilateral<float> pixelPts2f;     // 硬件ROI图幅下的像素坐标（即m_bgr_raw中的坐标） TODO: 改成cv::Rect<float>类型
+    cv::Point2f pixelCenterPt2f;         // 像素坐标中心
+    Quadrilateral<float> pixelPts2f_Ex;  // 扩展像素坐标
+    cv::Point3d ptsInGimbal;             // 物体在云台坐标系下坐标(相机坐标系经过固定变换后得到)
+    cv::Point3d ptsInWorld;              // 物体在世界坐标系下坐标
+    cv::Point3d ptsInWorld_Predict;      // 物体在预测后的世界坐标系下坐标, 不开启预测的时候和 ptsInWorld 一样
+    cv::Point3d ptsInGimbal_Predict;     // 物体在预测后的云台坐标系下坐标, 不开启预测的时候和 ptsInGimbal 一样
+    cv::Point3d ptsInShoot;              // 物体在经过弹道修正后的云台坐标系下坐标
+    float rPitch;                        // 相对Pitch值, 发给电控
+    float rYaw;                          // 相对Yaw值, 发给电控
+    float bulletSpeed;                   // 子弹速度
+    int rTick;                           // 相对帧编号
+    emTargetType type;                   // TARGET_SMALL, TARGET_TARGET
 
     cv::Mat rv,  // 旋转向量
         tv,      // 偏移向量
@@ -241,23 +252,21 @@ struct Target {
                          m_rotY(std::move(t.m_rotY)), m_rotX(std::move(t.m_rotX)), vInGimbal3d(std::move(t.vInGimbal3d)) {}
 
     /**
-     * @param a 左上（从左上开始顺时针设置）
-     * @param b 左下
-     * @param c 右下
-     * @param d 右上
+     * @param tl 左上（从左上开始顺时针设置）
+     * @param bl 左下
+     * @param br 右下
+     * @param tr 右上
      * @param startPt 开小图模式下的偏移量
      * 设置硬件ROI图幅下的像素坐标,计算ROI像素中心点坐标
      */
-    void setPixelPts(const cv::Point2f &a, const cv::Point2f &b, const cv::Point2f &c, const cv::Point2f &d, const cv::Point2i &startPt) {
-        cv::Point2f startPt2f = cv::Point2f(startPt);
+    void setPixelPts(const cv::Point2f &tl, const cv::Point2f &bl, const cv::Point2f &br, const cv::Point2f &tr, const cv::Point2f &startPt) {
         //计算硬件ROI图幅下的像素坐标
-        pixelPts2f = std::vector<cv::Point2f>{a + startPt2f, b + startPt2f, c + startPt2f, d + startPt2f};
+        pixelPts2f.tl = tl + startPt;
+        pixelPts2f.tr = tr + startPt;
+        pixelPts2f.bl = bl + startPt;
+        pixelPts2f.br = br + startPt;
         //逐个遍历，将像素坐标累积求和
-        for (const auto &pt : pixelPts2f) {
-            pixelCenterPt2f += pt;
-        }
-        //像素坐标和/坐标数=像素中心点坐标
-        pixelCenterPt2f /= int(pixelPts2f.size());
+        pixelCenterPt2f = (pixelPts2f.tl + pixelPts2f.tr + pixelPts2f.bl + pixelPts2f.br) / 4;
     }
 
     /**
@@ -266,19 +275,18 @@ struct Target {
      */
     bool convert2ExternalPts2f() {
         //清除掉扩展像素坐标向量的元素，不释放内存
-        pixelPts2f_Ex.clear();
-        cv::Point2f halfDeltaA = (pixelPts2f[0] - pixelPts2f[1]) / 55 * 35;
-        pixelPts2f_Ex.emplace_back(pixelPts2f[0] + halfDeltaA);
-        pixelPts2f_Ex.emplace_back(pixelPts2f[1] - halfDeltaA);
-        cv::Point2f halfDeltaB = (pixelPts2f[3] - pixelPts2f[2]) / 55 * 35;
-        pixelPts2f_Ex.emplace_back(pixelPts2f[2] - halfDeltaB);
-        pixelPts2f_Ex.emplace_back(pixelPts2f[3] + halfDeltaB);
+        cv::Point2f halfDeltaA = (pixelPts2f.tl - pixelPts2f.bl) / 55 * 35;
+        pixelPts2f_Ex.tl = pixelPts2f.tl + halfDeltaA;
+        pixelPts2f_Ex.bl = pixelPts2f.bl - halfDeltaA;
+        cv::Point2f halfDeltaB = (pixelPts2f.tr - pixelPts2f.br) / 55 * 35;
+        pixelPts2f_Ex.br = pixelPts2f.br - halfDeltaB;
+        pixelPts2f_Ex.tr = pixelPts2f.tr + halfDeltaB;
 
-        for (const auto &_pt : pixelPts2f_Ex) {
-            //扩展后像素坐标超过采集的图像的图幅大小
-            if (_pt.x >= stFrameInfo.size.width || _pt.x < 0 || _pt.y >= stFrameInfo.size.height || _pt.y < 0)
-                return false;
-        }
+//扩展后像素坐标超过采集的图像的图幅大小
+#define PTSOF(pt) (((pt).x) >= stFrameInfo.size.width || ((pt).x) < 0 || ((pt).y) >= stFrameInfo.size.height || ((pt).y) < 0)
+        if (PTSOF(pixelPts2f_Ex.tl) || PTSOF(pixelPts2f_Ex.tr) || PTSOF(pixelPts2f_Ex.bl) || PTSOF(pixelPts2f_Ex.br))
+#undef PTSOF
+            return false;
         return true;
     }
 
@@ -289,20 +297,21 @@ struct Target {
     void calcWorldParams() {
         DEBUG("solvePnPRansac")
         /* 转化成相对原始图幅大小的像素坐标 */
-        std::vector<cv::Point2d> gPixelPts2f;
-        gPixelPts2f.reserve(4);  //灯条矩形的四个边角点坐标
-        for (int i = 0; i < 4; ++i) {
-            gPixelPts2f.emplace_back(cv::Point2d(pixelPts2f[i]) + cv::Point2d(stFrameInfo.offset));
-        }
+        std::vector<cv::Point2d> gPixelPts2d;
+        gPixelPts2d.reserve(4);  //灯条矩形的四个边角点坐标
+        gPixelPts2d.emplace_back(cv::Point2d(pixelPts2f.tl) + cv::Point2d(stFrameInfo.offset));
+        gPixelPts2d.emplace_back(cv::Point2d(pixelPts2f.bl) + cv::Point2d(stFrameInfo.offset));
+        gPixelPts2d.emplace_back(cv::Point2d(pixelPts2f.br) + cv::Point2d(stFrameInfo.offset));
+        gPixelPts2d.emplace_back(cv::Point2d(pixelPts2f.tr) + cv::Point2d(stFrameInfo.offset));
         CV_Assert(!stCamera.camMat.empty());
 
         // 存在两种尺寸装甲板
         //如果处于小装甲板模式，使用装甲板物理参数smallFig3f；否则使用装甲板物理参数largeFig3f
         //之后对灯条矩形进行solvePnP,得出对应的旋转向量r,偏移向量t
         if (type == TARGET_SMALL)
-            cv::solvePnP(stArmorStdFigure.smallFig3f, gPixelPts2f, stCamera.camMat, stCamera.distCoeffs, rv, tv);
+            cv::solvePnP(stArmorStdFigure.smallFig3f, gPixelPts2d, stCamera.camMat, stCamera.distCoeffs, rv, tv);
         else
-            cv::solvePnP(stArmorStdFigure.largeFig3f, gPixelPts2f, stCamera.camMat, stCamera.distCoeffs, rv, tv);
+            cv::solvePnP(stArmorStdFigure.largeFig3f, gPixelPts2d, stCamera.camMat, stCamera.distCoeffs, rv, tv);
 
         //罗德里格斯变换，为计算角度做准备
         cv::Rodrigues(rv, rvMat);  //将旋转向量变换成旋转矩阵

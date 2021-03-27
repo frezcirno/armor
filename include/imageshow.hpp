@@ -323,12 +323,12 @@ class ImageShowClient : ImageShowBase {
         cv::Scalar currentColor = m_getCurrentColor();
         int thickness = 1;
         for (const auto &_tar : targets) {
-            cv::line(m_frame, _tar.pixelPts2f[0], _tar.pixelPts2f[2], currentColor, thickness);
-            cv::putText(m_frame, "5", _tar.pixelPts2f[0], cv::FONT_HERSHEY_PLAIN, 1, currentColor);
-            cv::putText(m_frame, "1", _tar.pixelPts2f[1], cv::FONT_HERSHEY_PLAIN, 1, currentColor);
-            cv::putText(m_frame, "2", _tar.pixelPts2f[2], cv::FONT_HERSHEY_PLAIN, 1, currentColor);
-            cv::putText(m_frame, "3", _tar.pixelPts2f[3], cv::FONT_HERSHEY_PLAIN, 1, currentColor);
-            cv::line(m_frame, _tar.pixelPts2f[1], _tar.pixelPts2f[3], currentColor, thickness);
+            cv::line(m_frame, _tar.pixelPts2f.tl, _tar.pixelPts2f.br, currentColor, thickness);
+            cv::putText(m_frame, "5", _tar.pixelPts2f.tl, cv::FONT_HERSHEY_PLAIN, 1, currentColor);
+            cv::putText(m_frame, "1", _tar.pixelPts2f.bl, cv::FONT_HERSHEY_PLAIN, 1, currentColor);
+            cv::putText(m_frame, "2", _tar.pixelPts2f.br, cv::FONT_HERSHEY_PLAIN, 1, currentColor);
+            cv::putText(m_frame, "3", _tar.pixelPts2f.tr, cv::FONT_HERSHEY_PLAIN, 1, currentColor);
+            cv::line(m_frame, _tar.pixelPts2f.bl, _tar.pixelPts2f.tr, currentColor, thickness);
         }
         m_putMarginText(eventName + cv::format(": %d", int(targets.size())), currentColor, thickness);
     }
@@ -422,9 +422,10 @@ class ImageShowClient : ImageShowBase {
         cv::Scalar currentColor = m_getCurrentColor();
         int thickness = 1;
         for (const auto &_tar : targets) {
-            for (int i = 0; i < 4; ++i) {
-                cv::line(m_frame, _tar.pixelPts2f[i], _tar.pixelPts2f[(i + 1) % 4], currentColor, thickness);
-            }
+            cv::line(m_frame, _tar.pixelPts2f.tl, _tar.pixelPts2f.bl, currentColor, thickness);
+            cv::line(m_frame, _tar.pixelPts2f.bl, _tar.pixelPts2f.br, currentColor, thickness);
+            cv::line(m_frame, _tar.pixelPts2f.br, _tar.pixelPts2f.tr, currentColor, thickness);
+            cv::line(m_frame, _tar.pixelPts2f.tr, _tar.pixelPts2f.tl, currentColor, thickness);
         }
         m_putMarginText(eventName + cv::format(": %d", int(targets.size())), currentColor, thickness);
     }
@@ -439,13 +440,14 @@ class ImageShowClient : ImageShowBase {
             return;
         cv::Scalar currentColor = m_getCurrentColor();
         int thickness = 1;
-        for (int i = 0; i < 4; ++i) {
-            cv::line(m_frame, target.pixelPts2f[i], target.pixelPts2f[(i + 1) % 4], currentColor, thickness);
-        }
-        cv::putText(m_frame, cv::format("%d", target.rTick), target.pixelPts2f[0] + cv::Point2f(12, 0),
+        cv::line(m_frame, target.pixelPts2f.tl, target.pixelPts2f.bl, currentColor, thickness);
+        cv::line(m_frame, target.pixelPts2f.bl, target.pixelPts2f.br, currentColor, thickness);
+        cv::line(m_frame, target.pixelPts2f.br, target.pixelPts2f.tr, currentColor, thickness);
+        cv::line(m_frame, target.pixelPts2f.tr, target.pixelPts2f.tl, currentColor, thickness);
+        cv::putText(m_frame, cv::format("%d", target.rTick), target.pixelPts2f.tl + cv::Point2f(12, 0),
             cv::FONT_HERSHEY_PLAIN, s_fontSize, currentColor);
         cv::String carType = target.type == TARGET_SMALL ? "small" : "large";
-        cv::putText(m_frame, carType, target.pixelPts2f[0] + cv::Point2f(12, 12),
+        cv::putText(m_frame, carType, target.pixelPts2f.tl + cv::Point2f(12, 12),
             cv::FONT_HERSHEY_PLAIN, s_fontSize, currentColor);
         m_putMarginText(eventName, currentColor, thickness);
     }
