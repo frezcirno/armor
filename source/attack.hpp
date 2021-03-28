@@ -51,16 +51,17 @@ class AttackBase {
     static std::unique_ptr<tensorflow::Session, void(*)(tensorflow::Session*)> s_session; // 分类器
     static std::unique_ptr<sort::SORT> s_sortTracker;  // DeepSORT 跟踪
     static std::deque<size_t> s_trackId;               // DeepSORT 跟踪对象Id
+
     /**
-    * @param image 图片
-    * @param t tensor
-    * 将图片从mat转化为tensor
-    */
-   static void mat2Tensor(const cv::Mat &image, tensorflow::Tensor &t) {
+     * @param image 图片
+     * @param t tensor
+     * 将图片从mat转化为tensor
+     */
+    static void mat2Tensor(const cv::Mat &image, tensorflow::Tensor &t) {
        float *tensor_data_ptr = t.flat<float>().data();
        cv::Mat fake_mat(image.rows, image.cols, CV_32FC(image.channels()), tensor_data_ptr);
        image.convertTo(fake_mat, CV_32FC(image.channels()));
-   }
+    }
   private:
     /**
      * 初始化一个session
@@ -531,42 +532,7 @@ class Attack : AttackBase {
 
             if (!s_historyTargets.empty()) {
                 m_is.addFinalTargets("selected", s_historyTargets[0]);
-                /* 5.预测部分 */
-                if (m_isEnablePredict) {
-                    cout << "m_isEnablePredict start !" << endl;
-
-                    if (statusA == SEND_STATUS_AUTO_AIM) { /* 获取世界坐标点 */
-                        m_communicator.getGlobalAngle(&gYaw, &gPitch);
-                        s_historyTargets[0].convert2WorldPts(-gYaw, gPitch);
-                        cout << "s_historyTargets[0].ptsInGimbal : " << s_historyTargets[0].ptsInGimbal << endl;
-                        /* 卡尔曼滤波初始化/参数修正 */
-                        if (s_historyTargets.size() == 1)
-                            kalman.clear_and_init(s_historyTargets[0].ptsInWorld, timeStamp);
-                        else {
-                            kalman.correct(s_historyTargets[0].ptsInWorld, timeStamp);
-                        }
-                    }
-                    m_is.addText(cv::format("inWorld.x %.0f", s_historyTargets[0].ptsInWorld.x));
-                    m_is.addText(cv::format("inWorld.y %.0f", s_historyTargets[0].ptsInWorld.y));
-                    m_is.addText(cv::format("inWorld.z %.0f", s_historyTargets[0].ptsInWorld.z));
-                    /* 进行预测和坐标修正 */
-                    if (s_historyTargets.size() > 1) {
-                        kalman.predict(0.1, s_historyTargets[0].ptsInWorld_Predict);
-                        /* 转换为云台坐标点 */
-                        s_historyTargets[0].convert2GimbalPts(kalman.velocity);
-                        m_is.addText(cv::format("vx %4.0f", s_historyTargets[0].vInGimbal3d.x));
-                        m_is.addText(cv::format("vy %4.0f", cv::abs(s_historyTargets[0].vInGimbal3d.y)));
-                        m_is.addText(cv::format("vz %4.0f", cv::abs(s_historyTargets[0].vInGimbal3d.z)));
-                        if (cv::abs(s_historyTargets[0].vInGimbal3d.x) > 1.6) {
-                            double deltaX = cv::abs(13 * cv::abs(s_historyTargets[0].vInGimbal3d.x) *
-                                                    s_historyTargets[0].ptsInGimbal.z / 3000);
-                            deltaX = deltaX > 300 ? 300 : deltaX;
-                            s_historyTargets[0].ptsInGimbal.x +=
-                                deltaX * cv::abs(s_historyTargets[0].vInGimbal3d.x) /
-                                s_historyTargets[0].vInGimbal3d.x;
-                        }
-                    }
-                }
+                /* 5.预测部分（原三维坐标系卡尔曼滤波） */
 
                 /* 6.修正弹道并计算欧拉角 */
                 DEBUG("correctTrajectory_and_calcEuler start")
@@ -576,6 +542,34 @@ class Attack : AttackBase {
                 DEBUG("correctTrajectory_and_calcEuler end")
                 rYaw = s_historyTargets[0].rYaw;
                 rPitch = s_historyTargets[0].rPitch;
+
+                if (m_isEnablePredict) {
+                    cout << "m_isEnablePredict start !" << endl;
+                    cout << "Now  rPitch is " << rPitch << endl;
+                    cout << "Now  rYaw is" << rYaw << endl;
+                    if (statusA == SEND_STATUS_AUTO_AIM) { /* 获取世界坐标点 */
+                        m_communicator.getGlobalAngle(&gYaw, &gPitch);
+                        cout << "gPitch=" << gPitch << endl;
+                        cout << "gYaw=" << gYaw << endl;
+                        /* 卡尔曼滤波初始化/参数修./att正 */
+                        if (s_historyTargets.size() == 1)
+                            //*kalman.clear_and_init(s_historyTargets[0].ptsInWorld, timeStamp);
+                            kalman.clear_and_init(rPitch, rYaw, timeStamp);
+                        else {
+                            //*kalman.correct(s_historyTargets[0].ptsInWorld, timeStamp);
+                            kalman.correct(&rPitch, &rYaw, timeStamp);
+                        }
+                    }
+                    /* 进行预测和坐标修正 */
+                    if (s_historyTargets.size() > 1) {
+                        kalman.predict(0.1, &s_historyTargets[0].predictPitch, &s_historyTargets[0].predictYaw);
+                        /* 转换为云台坐标点 */
+                        cout << "predictPitch:" << s_historyTargets[0].predictPitch << endl;
+                        cout << "predictYaw" << s_historyTargets[0].predictYaw << endl;
+                        m_is.addText(cv::format("predictPitch %4.0f", s_historyTargets[0].predictPitch));
+                        m_is.addText(cv::format("predictYaw %4.0f", s_historyTargets[0].predictYaw));
+                    }
+                }
 
                 /* 7.射击策略 */
                 if (s_historyTargets.size() >= 3 &&
@@ -597,6 +591,7 @@ class Attack : AttackBase {
                 m_is.addText(cv::format("rYaw + gYaw   %.3f", rYaw - gYaw));
             }
             /* 8.通过PID对yaw进行修正（参数未修改） */
+            /*
             float newYaw = rYaw;
             if (cv::abs(rYaw) < 5)
                 newYaw = m_pid.calc(rYaw, timeStamp);
@@ -606,6 +601,7 @@ class Attack : AttackBase {
             m_is.addText(cv::format("delta yaw %3.3f", newYaw - rYaw));
 
             newYaw = cv::abs(newYaw) < 0.3 ? rYaw : newYaw;
+            */
 
             /* 9.发给电控 */
             m_communicator.send(rYaw, -rPitch, statusA, SEND_STATUS_WM_PLACEHOLDER);

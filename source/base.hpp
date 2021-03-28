@@ -189,7 +189,7 @@ struct Quadrilateral {
 
 /**
  */
-struct Target { // TODO: 结构体太大了，尝试优化不必要的变量
+struct Target {                          // TODO: 结构体太大了，尝试优化不必要的变量
     Quadrilateral<float> pixelPts2f;     // 硬件ROI图幅下的像素坐标（即m_bgr_raw中的坐标） TODO: 改成cv::Rect<float>类型
     cv::Point2f pixelCenterPt2f;         // 像素坐标中心
     Quadrilateral<float> pixelPts2f_Ex;  // 扩展像素坐标
@@ -198,6 +198,8 @@ struct Target { // TODO: 结构体太大了，尝试优化不必要的变量
     cv::Point3d ptsInWorld_Predict;      // 物体在预测后的世界坐标系下坐标, 不开启预测的时候和 ptsInWorld 一样
     cv::Point3d ptsInGimbal_Predict;     // 物体在预测后的云台坐标系下坐标, 不开启预测的时候和 ptsInGimbal 一样
     cv::Point3d ptsInShoot;              // 物体在经过弹道修正后的云台坐标系下坐标
+    float predictPitch;                  // 新卡尔曼滤波
+    float predictYaw;                    // 新卡尔曼滤波
     float rPitch;                        // 相对Pitch值, 发给电控
     float rYaw;                          // 相对Yaw值, 发给电控
     float bulletSpeed;                   // 子弹速度
@@ -470,22 +472,18 @@ class PID {
  */
 class Kalman {
     cv::KalmanFilter m_kf;
-    cv::Mat m_measurement = cv::Mat::zeros(3, 1, CV_32F);
+    cv::Mat m_measurement = cv::Mat::zeros(2, 1, CV_32F);
     int64_t m_lastTimeStamp;
 
   public:
     cv::Point3d velocity;
 
     explicit Kalman() : m_lastTimeStamp(0) {
-        m_kf.init(6, 3, 0);
-        m_kf.transitionMatrix = (cv::Mat_<float>(6, 6)
-                                     << 1,
-            0, 0, 1, 0, 0,
-            0, 1, 0, 0, 1, 0,
-            0, 0, 1, 0, 0, 1,
-            0, 0, 0, 1, 0, 0,
-            0, 0, 0, 0, 1, 0,
-            0, 0, 0, 0, 0, 1);
+        m_kf.init(4, 2, 0);
+        m_kf.transitionMatrix = (cv::Mat_<float>(6, 6) << 1, 0, 1, 0,
+            0, 1, 0, 1,
+            0, 0, 1, 0,
+            0, 0, 0, 1);
         setIdentity(m_kf.measurementMatrix);                           //观测模型
         setIdentity(m_kf.processNoiseCov, cv::Scalar::all(1e-5));      //过程噪声
         setIdentity(m_kf.measurementNoiseCov, cv::Scalar::all(1e-1));  //观测噪声
@@ -496,21 +494,16 @@ class Kalman {
      * @param timestamp 时间戳
      * func 卡尔曼滤波清零初始化
      */
-    void clear_and_init(cv::Point3d &pos, int64_t timeStamp) {
-        m_kf.transitionMatrix = (cv::Mat_<float>(6, 6)
-                                     << 1,
-            0, 0, 1, 0, 0,
-            0, 1, 0, 0, 1, 0,
-            0, 0, 1, 0, 0, 1,
-            0, 0, 0, 1, 0, 0,
-            0, 0, 0, 0, 1, 0,
-            0, 0, 0, 0, 0, 1);
+    void clear_and_init(float gPitch, float gYaw, int64_t timeStamp) {
+        m_kf.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, 1, 0,
+            0, 1, 0, 1,
+            0, 0, 1, 0,
+            0, 0, 0, 1);
         setIdentity(m_kf.measurementMatrix);
         setIdentity(m_kf.processNoiseCov, cv::Scalar::all(1e-5));
         setIdentity(m_kf.measurementNoiseCov, cv::Scalar::all(1e-1));
         setIdentity(m_kf.errorCovPost, cv::Scalar::all(1));
-
-        m_kf.statePost = (cv::Mat_<float>(6, 1) << pos.x, pos.y, pos.z, 0, 0, 0);
+        m_kf.statePost = (cv::Mat_<float>(4, 1) << gPitch, gYaw, 0, 0);
         m_lastTimeStamp = timeStamp;
     }
 
@@ -519,24 +512,17 @@ class Kalman {
      * @param timeStamp 微秒
      * 卡尔曼修正函数
      */
-    void correct(cv::Point3d &pos, int64_t timeStamp) {
-        /* 计算时间差 */
-        float deltaT = (timeStamp - m_lastTimeStamp) / 10000.0;  //s*100
+    void correct(float *gPitch, float *gYaw, int64_t timeStamp) {
+        float deltaT = (timeStamp - m_lastTimeStamp) / 10000.0;
         assert(deltaT > 0);
         m_lastTimeStamp = timeStamp;
-
-        /* 更新状态转移矩阵 */
-        m_kf.transitionMatrix = (cv::Mat_<float>(6, 6)
-                                     << 1,
-            0, 0, deltaT, 0, 0,
-            0, 1, 0, 0, deltaT, 0,
-            0, 0, 1, 0, 0, deltaT,
-            0, 0, 0, 1, 0, 0,
-            0, 0, 0, 0, 1, 0,
-            0, 0, 0, 0, 0, 1);
-        m_measurement.at<float>(0) = (float)pos.x;
-        m_measurement.at<float>(1) = (float)pos.y;
-        m_measurement.at<float>(2) = (float)pos.z;
+        m_kf.transitionMatrix = (cv::Mat_<float>(4, 4) << 1, 0, deltaT, 0,
+            0, 1, deltaT, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1);
+        m_measurement.at<float>(0) = (float)*gPitch;
+        m_measurement.at<float>(1) = (float)*gYaw;
+        //m_measurement.at<float>(2) = (float)pos.z;
         m_kf.correct(m_measurement);
     }
 
@@ -550,6 +536,17 @@ class Kalman {
         predictRelativePos.x = prediction.at<float>(0) + delay * prediction.at<float>(3);
         predictRelativePos.y = prediction.at<float>(1) + delay * prediction.at<float>(4);
         predictRelativePos.z = prediction.at<float>(2) + delay * prediction.at<float>(5);
+    }
+
+    /**
+     * @param delay 秒
+     * @param predictPitch 预测角度
+     * @param predictYaw 预测角度
+     */
+    void predict(float delay, float *predictPitch, float *predictYaw) {
+        cv::Mat prediction = m_kf.predict();
+        *predictPitch = prediction.at<float>(0) + delay * prediction.at<float>(2);
+        *predictYaw = prediction.at<float>(1) + delay * prediction.at<float>(3);
     }
 };
 }  // namespace armor
