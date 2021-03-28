@@ -27,7 +27,7 @@ apt update
 fi
 
 echo "Installing packages......."
-apt install -y build-essential cmake git libgtk2.0-dev libboost-dev libboost-thread-dev libusb-1.0-0-dev catkin lsb linux-headers-generic
+apt install -y build-essential cmake git libgtk2.0-dev libboost-dev libboost-thread-dev libusb-1.0-0-dev catkin lsb linux-headers-generic libdlib-dev
 
 echo ""
 echo -n "是否要安装相机SDK [Y/n]? "

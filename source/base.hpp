@@ -179,8 +179,11 @@ typedef enum {
 template <typename T>
 struct Quadrilateral {
     cv::Point_<T> tl, tr, bl, br;
-    std::vector<cv::Point_<T>> toArray() const {
+    inline std::vector<cv::Point_<T>> toArray() const {
         return {tl, bl, br, tr};
+    }
+    inline cv::Rect_<T> toRect() const {
+        return {tl, br};
     }
 };
 

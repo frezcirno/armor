@@ -60,6 +60,7 @@ target_link_libraries(attack ${OpenCV_LIBS})
 target_link_libraries(attack ${serial_LIBRARIES})
 target_link_libraries(attack ${Boost_LIBRARIES} usb-1.0)
 target_link_libraries(attack ${CMAKE_CURRENT_SOURCE_DIR}/tensorflow/libtensorflow_cc.so ${CMAKE_CURRENT_SOURCE_DIR}/tensorflow/libtensorflow_framework.so.2)
+target_link_libraries(attack dlib)
 
 ## DaHua SDK 和 MindVision SDK 库文件重名, 只能取一个
 if ("${CAMERA}" STREQUAL "MINDVISION")

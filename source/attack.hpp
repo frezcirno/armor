@@ -12,7 +12,9 @@
 #include "capture.hpp"
 #include "communicator.hpp"
 #include "imageshow.hpp"
+#define NDEBUG
 #include "sort/sort.h"
+#undef NDEBUG
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-attributes"
@@ -23,14 +25,13 @@
 #include "tensorflow/core/util/command_line_flags.h"
 #pragma GCC diagnostic pop
 
-using namespace tensorflow;
 
 // TODO: 把这些静态常量移到配置文件中
 /*模型路径*/
-const string model_path = "../Model/happyModel.pb";
+const std::string model_path = "../Model/happyModel.pb";
 /*输入输出节点详见ipynb的summary*/
-const string input_name = "input_1:0";
-const string output_name = "y/Sigmoid:0";
+const std::string input_name = "input_1:0";
+const std::string output_name = "y/Sigmoid:0";
 const int fixedSize = 32;
 
 const unsigned int max_age = 1;
@@ -47,16 +48,61 @@ class AttackBase {
     static std::atomic<int64_t> s_latestTimeStamp;     // 已经发送的帧编号
     static std::deque<Target> s_historyTargets;        // 打击历史, 最新的在头部, [0, 1, 2, 3, ....]
     static Kalman kalman;                              // 卡尔曼滤波
-    static tensorflow::Session *m_session;             // 分类器  TODO: 名字前缀，考虑改成智能指针
+    static std::unique_ptr<tensorflow::Session, void(*)(tensorflow::Session*)> s_session; // 分类器
     static std::unique_ptr<sort::SORT> s_sortTracker;  // DeepSORT 跟踪
+    static std::deque<size_t> s_trackId;               // DeepSORT 跟踪对象Id
+    /**
+    * @param image 图片
+    * @param t tensor
+    * 将图片从mat转化为tensor
+    */
+   static void mat2Tensor(const cv::Mat &image, tensorflow::Tensor &t) {
+       float *tensor_data_ptr = t.flat<float>().data();
+       cv::Mat fake_mat(image.rows, image.cols, CV_32FC(image.channels()), tensor_data_ptr);
+       image.convertTo(fake_mat, CV_32FC(image.channels()));
+   }
+  private:
+    /**
+     * 初始化一个session
+     */
+    static decltype(s_session) initTFSession() {
+        using namespace tensorflow;
+
+        Status s;
+        Session *tf_session;
+
+        s = NewSession(SessionOptions(), &tf_session);
+        if (!s.ok())
+            std::cout << "[TensorFlow] " << s.ToString() << std::endl;
+        else
+            std::cout << "[TensorFlow] Create session successfully" << std::endl;
+
+        /* 从pb文件中读取模型 */
+        GraphDef graph_def;
+        s = ReadBinaryProto(Env::Default(), model_path, &graph_def);  //读取Graph, 如果是文本形式的pb,使用ReadTextProto
+        if (!s.ok())
+            std::cout << "[TensorFlow] " << s.ToString() << std::endl;
+        else
+            std::cout << "[TensorFlow] Load graph protobuf successfully" << std::endl;
+
+        /* 将模型设置到创建的Session里 */
+        s = tf_session->Create(graph_def);
+        if (!s.ok())
+            std::cout << s.ToString() << std::endl;
+        else
+            std::cout << "[TensorFlow] Add graph to session successfully" << std::endl;
+
+        return { tf_session, [](Session* tfsession){ tfsession->Close(); } };
+    }
 };
 /* 类静态成员初始化 */
 std::mutex AttackBase::s_mutex;
 std::atomic<int64_t> AttackBase::s_latestTimeStamp(0);
 std::deque<Target> AttackBase::s_historyTargets;
 Kalman AttackBase::kalman;
-tensorflow::Session *AttackBase::m_session;
-std::unique_ptr<sort::SORT> AttackBase::s_sortTracker(std::make_unique<sort::SORT>(iou_threshold, max_age, min_hits));
+decltype(AttackBase::s_session) AttackBase::s_session = AttackBase::initTFSession();
+decltype(AttackBase::s_sortTracker) AttackBase::s_sortTracker(std::make_unique<sort::SORT>(iou_threshold, max_age, min_hits));
+std::deque<size_t> AttackBase::s_trackId;
 /**
  * 自瞄主类
  */
@@ -83,11 +129,6 @@ class Attack : AttackBase {
                                                                                        m_is(isClient),
                                                                                        m_isEnablePredict(true), m_currentTimeStamp(0), m_pid(pid), m_isUseDialte(false) {
         m_isUseDialte = stConfig.get<bool>("auto.is-dilate");
-        NewSession(SessionOptions(), &m_session);  // TODO: 基类变量的初始化应该在基类内完成
-        init_tf_session();
-    }
-    ~Attack() {
-        m_session->Close();
     }
     void setMode(bool colorMode) { mode = colorMode; }
 
@@ -204,16 +245,6 @@ class Attack : AttackBase {
     int m_cropNameCounter = 0;  // TODO: magic variable
 
     /**
-     * @param image 图片
-     * @param t tensor
-     * 将图片从mat转化为tensor
-     */
-    void mat2Tensor(const cv::Mat &image, Tensor &t) {
-        float *tensor_data_ptr = t.flat<float>().data();
-        cv::Mat fake_mat(image.rows, image.cols, CV_32FC(image.channels()), tensor_data_ptr);
-        image.convertTo(fake_mat, CV_32FC(image.channels()));
-    }
-    /**
      * @param mat 图片
      * @param thre_proportion 比例阈值 0.1
      * 得到二值化阈值
@@ -278,26 +309,6 @@ class Attack : AttackBase {
     }
 
     /**
-     * 读取模型并设置到session中
-     */
-    void init_tf_session() {
-        /* 从pb文件中读取模型 */
-        GraphDef graph_def;
-        Status status = ReadBinaryProto(Env::Default(), model_path, &graph_def);  //读取Graph, 如果是文本形式的pb,使用ReadTextProto
-        if (!status.ok())
-            std::cout << "[TensorFlow] " << status.ToString() << std::endl;
-        else
-            std::cout << "[TensorFlow] "
-                      << "Load graph protobuf successfully" << std::endl;
-        /* 将模型设置到创建的Session里 */
-        status = m_session->Create(graph_def);
-        if (!status.ok())
-            std::cout << status.ToString() << std::endl;
-        else
-            std::cout << "[TensorFlow] "
-                      << "Add graph to session successfully" << std::endl;
-    }
-    /**
      * 基于tensorflow的分类器
      * @param isSave 是否保存样本图片
      * @change m_targets 经过分类器的装甲板
@@ -305,7 +316,7 @@ class Attack : AttackBase {
     void m_classify_single_tensor(bool isSave = false) {
         if (m_preTargets.empty())
             return;
-        tensorflow::Tensor input = Tensor(DT_FLOAT, TensorShape({1, fixedSize, fixedSize, 1}));
+        auto input = tensorflow::Tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({1, fixedSize, fixedSize, 1}));
 
         for (auto &_tar : m_preTargets) {
             auto pixelPts2f_Ex_array = _tar.pixelPts2f_Ex.toArray();
@@ -329,7 +340,7 @@ class Attack : AttackBase {
                 /* 保留最终输出 */
                 std::vector<tensorflow::Tensor> outputs;
                 /* 计算最后结果 */
-                TF_CHECK_OK(m_session->Run({std::pair<string, Tensor>(input_name, input)}, {output_name}, {}, &outputs));
+                TF_CHECK_OK(s_session->Run({std::pair<std::string, tensorflow::Tensor>(input_name, input)}, {output_name}, {}, &outputs));
                 /* 获取输出 */
                 auto output_c = outputs[0].scalar<float>();
                 float result = output_c();
@@ -353,84 +364,59 @@ class Attack : AttackBase {
         /* 更新下相对帧编号 */
         for (auto iter = s_historyTargets.begin(); iter != s_historyTargets.end(); iter++) {
             iter->rTick++;
-            /* 历史值数量大于30便删除末尾记录 */
+            /* 超过30帧就删除 */
             if (iter->rTick > 30) {
                 s_historyTargets.erase(iter, s_historyTargets.end());
+                s_trackId.erase(iter - s_historyTargets.begin() + s_trackId.begin(), s_trackId.end());
                 break;
             }
         }
-        /* Tracker 更新 */
-        // std::vector<sort::BBox> bboxs;
-        // for (auto &&tar : m_targets)
-        // {
-        //     bboxs.emplace_back(sort::BBox(tar.pixelPts2f.toArray()));
-        // }
 
-        // auto tracks = s_sortTracker->update(bboxs);
+        /* Tracker 更新 */
+        std::vector<sort::BBox> bboxs;
+        for (auto &&tar : m_targets)
+        {
+            bboxs.emplace_back(tar.pixelPts2f.toRect());
+        }
+        auto tracks = s_sortTracker->update(bboxs);
 
         /* 选择本次打击目标 */
         if (s_historyTargets.empty()) {
             /* case A: 之前没选择过打击目标 */
             /* 选择数组中距离最近的目标作为击打目标 */
-            auto minTarElement = std::min_element(
-                m_targets.begin(), m_targets.end(), [](Target &a_, Target &b_) -> bool {
+            auto minTarElem = std::min_element(
+                m_targets.begin(), m_targets.end(), [](const Target &a_, const Target &b_) {
                     return cv::norm(a_.ptsInGimbal) < cv::norm(b_.ptsInGimbal);
                 });  //找到含离云台最近的目标
-            if (minTarElement != m_targets.end()) {
-                s_historyTargets.emplace_front(*minTarElement);
+            if (minTarElem != m_targets.end()) {
                 PRINT_INFO("++++++++++++++++ 发现目标: 选择最近的 ++++++++++++++++++++\n");
+                s_historyTargets.emplace_front(*minTarElem);
+                // 找到最近的trackId并记录下来
+                s_trackId.push_front(std::min_element(tracks.begin(), tracks.end(), [&](const sort::Track& a, const sort::Track& b) {
+                    auto aDist = a.bbox.tl() - minTarElem->pixelPts2f.tl + b.bbox.br() - minTarElem->pixelPts2f.br;
+                    auto bDist = a.bbox.tl() - minTarElem->pixelPts2f.tl + b.bbox.br() - minTarElem->pixelPts2f.br;
+                    return aDist.x + aDist.y < bDist.x + bDist.y;
+                }) - tracks.begin());
                 return SEND_STATUS_AUTO_AIM;  //瞄准
             } else {
                 return SEND_STATUS_AUTO_NOT_FOUND;  //未找到
             }
-        }  // end case A
-        else {
+        } else {
             /* case B: 之前选过打击目标了, 得找到一样的目标 */
             PRINT_INFO("++++++++++++++++ 开始寻找上一次目标 ++++++++++++++++++++\n");
+            auto trackElem = std::find_if(tracks.begin(), tracks.end(), [&](const sort::Track& track){
+                return track.id == s_trackId.front();
+            });
 
-            double distance = 0xffffffff;
-            int closestElementIndex = -1;
-            auto history_array = s_historyTargets[0].pixelPts2f.toArray();
-            for (size_t i = 0; i < m_targets.size(); ++i) {
-                auto target_array = m_targets[i].pixelPts2f.toArray();
-                /* 进行轮廓匹配，所得为0～1，数值越小越好*/
-                double distanceA = cv::matchShapes(target_array, history_array, cv::CONTOURS_MATCH_I3, 0.0);
-                /* 获取图像矩 */
-                cv::Moments m_1 = cv::moments(target_array);
-                cv::Moments m_2 = cv::moments(history_array);
-                PRINT_WARN("distanceA = %f\n", distanceA);
-                /* 进行matchShaoes的阈值限定，并保证归一化中心矩同号 */
-                if (distanceA > 0.5 ||
-                    (m_1.nu11 + m_1.nu30 + m_1.nu12) * (m_2.nu11 + m_2.nu30 + m_2.nu12) < 0)
-                    continue;
-
-                double distanceB;
-                if (m_isEnablePredict) {
-                    /* 用绝对坐标距离计算 两次位置之差 */
-                    distanceB = cv::norm(m_targets[i].ptsInWorld - s_historyTargets[0].ptsInWorld) / 2000.0;
-                    PRINT_WARN("distanceB = %f\n", distanceB);
-                    /* 进行阈值判定 */
-                    if (distanceB > 0.5)
-                        continue;
-                } else {
-                    /* 用云台坐标系距离计算 两次位置之差 */
-                    distanceB = cv::norm(m_targets[i].ptsInGimbal - s_historyTargets[0].ptsInGimbal) / 3400.0;
-                    PRINT_WARN("distanceB = %f\n", distanceB);
-                    /* 进行阈值判定 */
-                    if (distanceB > 0.8)
-                        continue;
-                }
-                double _distanceTemp = distanceA + distanceB / 2;
-                /* 参数更正，保证当前图片存在 */
-                if (distance > _distanceTemp) {
-                    distance = _distanceTemp;
-                    closestElementIndex = i;
-                }
-            }
-            if (closestElementIndex != -1) {
-                /* 找到了 */
-                s_historyTargets.emplace_front(m_targets[closestElementIndex]);
+            if (trackElem != tracks.end()) {
                 PRINT_INFO("++++++++++++++++ 找到上一次目标 ++++++++++++++++++++\n");
+                auto closestTarget = std::min_element(m_targets.begin(), m_targets.end(), [&](const Target &a_, const Target &b_) {
+                    auto aDist = trackElem->bbox.tl() - a_.pixelPts2f.tl + trackElem->bbox.br() - b_.pixelPts2f.br;
+                    auto bDist = trackElem->bbox.tl() - a_.pixelPts2f.tl + trackElem->bbox.br() - b_.pixelPts2f.br;
+                    return aDist.x + aDist.y < bDist.x + bDist.y;
+                }); // (一定存在)
+                s_historyTargets.emplace_front(*closestTarget);
+                s_trackId.emplace_front(s_trackId.front());
                 return SEND_STATUS_AUTO_AIM;  //瞄准
             } else {
                 PRINT_INFO("++++++++++++++++ 没找到上一次目标, 按上一次的来 ++++++++++++++++++++\n");
@@ -457,7 +443,7 @@ class Attack : AttackBase {
      * @param extendFlag 是否扩展
      * 图像扩展ROI
      */
-    void getBoundingRect(Target &tar, cv::Rect &rect, cv::Size &size, bool extendFlag = false) {
+    static void getBoundingRect(Target &tar, cv::Rect &rect, cv::Size &size, bool extendFlag = false) {
         rect = cv::boundingRect(s_historyTargets[0].pixelPts2f_Ex.toArray());
 
         if (extendFlag) {
