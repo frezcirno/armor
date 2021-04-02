@@ -34,9 +34,9 @@ const std::string input_name = "input_1:0";
 const std::string output_name = "y/Sigmoid:0";
 const int fixedSize = 32;
 
-const unsigned int max_age = 1;
-const unsigned int min_hits = 3;
-const double iou_threshold = 0.3;
+const unsigned int max_age = 10;
+const unsigned int min_hits = 1;
+const double iou_threshold = 0.1;
 
 namespace armor {
 /**
@@ -241,7 +241,7 @@ class Attack : AttackBase {
             }
         }
         m_is.addEvent("preTargets", m_preTargets);
-        std::cout << "preTargets: " << m_preTargets.size() << std::endl;
+        // std::cout << "preTargets: " << m_preTargets.size() << std::endl;
     }
     int m_cropNameCounter = 0;  // TODO: magic variable
 
@@ -346,7 +346,7 @@ class Attack : AttackBase {
                 auto output_c = outputs[0].scalar<float>();
                 float result = output_c();
                 /* 判断正负样本 */
-                if (0.5 < result)
+                if (0 <= result)
                     m_targets.emplace_back(_tar);
             } else
                 continue;
@@ -379,7 +379,10 @@ class Attack : AttackBase {
         {
             bboxs.emplace_back(tar.pixelPts2f.toRect());
         }
-        auto tracks = s_sortTracker->update(bboxs);
+        std::vector<sort::Track> tracks = s_sortTracker->update(bboxs);
+        
+        m_is.addTracks(tracks);
+        m_is.addText(cv::format("Track Id: %d", s_trackId.front()));
 
         /* 选择本次打击目标 */
         if (s_historyTargets.empty()) {
@@ -531,7 +534,7 @@ class Attack : AttackBase {
             emSendStatusA statusA = m_match();
 
             if (!s_historyTargets.empty()) {
-                m_is.addFinalTargets("selected", s_historyTargets[0]);
+                m_is.addFinalTargets("final", s_historyTargets[0]);
                 /* 5.预测部分（原三维坐标系卡尔曼滤波） */
 
                 /* 6.修正弹道并计算欧拉角 */

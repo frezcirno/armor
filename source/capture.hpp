@@ -745,8 +745,16 @@ class DaHuaVision : public Capture {
 
         m_setParams();
 
+        /**
+         * Dahua Camera Note: 
+         * Max Frame Size = 1280 x 962 
+         * We use the 1280 x 960 of it, So
+         *  size = 1280, 960 
+         *  offset = 0, 0
+         */
+
         /* ROI初始化 */
-        stFrameInfo.size = cv::Size(1280, 1024);
+        stFrameInfo.size = cv::Size(1280, 960);
         stFrameInfo.offset = cv::Point2i(0, 0);
 
         /* 创建流对象 */
