@@ -226,6 +226,9 @@ namespace wm
 
                 if (Rrect.size.area() < 2000 || Rrect.size.area() > 60000)
                     continue;
+
+                if (Rrect.size.height > frame.rows || Rrect.size.width > frame.cols)
+                    continue;
                 
                 draw_rotated(frame, Rrect);//draw
                 std::vector<cv::RotatedRect> Rrect_list2;
@@ -242,6 +245,9 @@ namespace wm
         if (indexs.size())
             for (int t = 0; t < indexs.size(); t++) {//遍历轮廓
                 int i = indexs[t];
+
+                if (contours[i].size() < 5)
+                    continue; //椭圆拟合至少五个点
                 Rrect = cv::fitEllipse(contours[i]);
                 int outer_long = std::max(Rrect.size.width, Rrect.size.height);
                 int outer_short = std::min(Rrect.size.width, Rrect.size.height);
@@ -299,6 +305,8 @@ namespace wm
                 {
                     int a_i = hierarchy[i][2];//子轮廓，找到装甲板
                     for (int b_i = a_i; b_i >= 0; b_i = hierarchy[b_i][0]) {//筛选装甲板，通过长宽比和装甲板宽度和旋转臂宽度比较筛选
+                        if (contours[b_i].size() < 5)
+                            continue; //椭圆拟合至少五个点
                         Armor = cv::fitEllipse(contours[b_i]);
                         int inner_long = std::max(Armor.size.width, Armor.size.height);
                         int inner_short = std::min(Armor.size.width, Armor.size.height);
@@ -378,9 +386,10 @@ namespace wm
                     cv::circle(frame, final[1], 20, {0, 255, 0});
                     cv::circle(frame, final[2], 30, {0, 255, 0});
                     cv::circle(frame, final[3], 40, {0, 255, 0}); //点位判断
-
+                    findedTarget.vertexs = final;
                 }
             }
+        
         is->addImg("frame", frame, true);
         return isFind;
     };
