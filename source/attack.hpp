@@ -50,7 +50,7 @@ class AttackBase {
     static Kalman kalman;                              // 卡尔曼滤波
     static std::unique_ptr<tensorflow::Session, void(*)(tensorflow::Session*)> s_session; // 分类器
     static std::unique_ptr<sort::SORT> s_sortTracker;  // DeepSORT 跟踪
-    static std::deque<size_t> s_trackId;               // DeepSORT 跟踪对象Id
+    static size_t s_trackId;               // DeepSORT 跟踪对象Id
 
     /**
      * @param image 图片
@@ -103,7 +103,7 @@ std::deque<Target> AttackBase::s_historyTargets;
 Kalman AttackBase::kalman;
 decltype(AttackBase::s_session) AttackBase::s_session = AttackBase::initTFSession();
 decltype(AttackBase::s_sortTracker) AttackBase::s_sortTracker(std::make_unique<sort::SORT>(iou_threshold, max_age, min_hits));
-std::deque<size_t> AttackBase::s_trackId;
+size_t AttackBase::s_trackId;
 /**
  * 自瞄主类
  */
@@ -357,6 +357,14 @@ class Attack : AttackBase {
     }
 
     /**
+     * Get the distance between a sort::Track and a armor::Target
+     */
+    static float distance(const sort::Track& track, const Target& target) {
+        auto dist = track.bbox.tl() + track.bbox.br() - target.pixelPts2f.tl - target.pixelPts2f.br;
+        return dist.x + dist.y;
+    }
+
+    /**
      * 击打策略函数
      * @change s_historyTargets 在数组开头添加本次打击的目标
      * @return emSendStatusA 
@@ -368,7 +376,7 @@ class Attack : AttackBase {
             /* 超过30帧就删除 */
             if (iter->rTick > 30) {
                 s_historyTargets.erase(iter, s_historyTargets.end());
-                s_trackId.erase(iter - s_historyTargets.begin() + s_trackId.begin(), s_trackId.end());
+                if (s_historyTargets.empty()) s_trackId = -1;
                 break;
             }
         }
@@ -382,7 +390,7 @@ class Attack : AttackBase {
         std::vector<sort::Track> tracks = s_sortTracker->update(bboxs);
         
         m_is.addTracks(tracks);
-        m_is.addText(cv::format("Track Id: %d", s_trackId.front()));
+        m_is.addText(cv::format("Track Id: %d", s_trackId));
 
         /* 选择本次打击目标 */
         if (s_historyTargets.empty()) {
@@ -396,11 +404,10 @@ class Attack : AttackBase {
                 PRINT_INFO("++++++++++++++++ 发现目标: 选择最近的 ++++++++++++++++++++\n");
                 s_historyTargets.emplace_front(*minTarElem);
                 // 找到最近的trackId并记录下来
-                s_trackId.push_front(std::min_element(tracks.begin(), tracks.end(), [&](const sort::Track& a, const sort::Track& b) {
-                    auto aDist = a.bbox.tl() - minTarElem->pixelPts2f.tl + b.bbox.br() - minTarElem->pixelPts2f.br;
-                    auto bDist = a.bbox.tl() - minTarElem->pixelPts2f.tl + b.bbox.br() - minTarElem->pixelPts2f.br;
-                    return aDist.x + aDist.y < bDist.x + bDist.y;
-                }) - tracks.begin());
+                auto minTrackElem = std::min_element(tracks.begin(), tracks.end(), [&](const sort::Track& a, const sort::Track& b) {
+                    return distance(a, *minTarElem) < distance(b, *minTarElem);
+                });
+                s_trackId = (minTrackElem != tracks.end() ? minTrackElem->id : s_trackId);
                 return SEND_STATUS_AUTO_AIM;  //瞄准
             } else {
                 return SEND_STATUS_AUTO_NOT_FOUND;  //未找到
@@ -408,19 +415,18 @@ class Attack : AttackBase {
         } else {
             /* case B: 之前选过打击目标了, 得找到一样的目标 */
             PRINT_INFO("++++++++++++++++ 开始寻找上一次目标 ++++++++++++++++++++\n");
-            auto trackElem = std::find_if(tracks.begin(), tracks.end(), [&](const sort::Track& track){
-                return track.id == s_trackId.front();
-            });
+            auto trackElem = s_trackId != -1 ? 
+                std::find_if(tracks.begin(), tracks.end(), [&](const sort::Track& track){
+                    return track.id == s_trackId;
+                }) 
+                : tracks.end();
 
             if (trackElem != tracks.end()) {
                 PRINT_INFO("++++++++++++++++ 找到上一次目标 ++++++++++++++++++++\n");
-                auto closestTarget = std::min_element(m_targets.begin(), m_targets.end(), [&](const Target &a_, const Target &b_) {
-                    auto aDist = trackElem->bbox.tl() - a_.pixelPts2f.tl + trackElem->bbox.br() - b_.pixelPts2f.br;
-                    auto bDist = trackElem->bbox.tl() - a_.pixelPts2f.tl + trackElem->bbox.br() - b_.pixelPts2f.br;
-                    return aDist.x + aDist.y < bDist.x + bDist.y;
+                auto closestTarget = std::min_element(m_targets.begin(), m_targets.end(), [&](const Target &a, const Target &b) {
+                    return distance(*trackElem, a) < distance(*trackElem, b);
                 }); // (一定存在)
                 s_historyTargets.emplace_front(*closestTarget);
-                s_trackId.emplace_front(s_trackId.front());
                 return SEND_STATUS_AUTO_AIM;  //瞄准
             } else {
                 PRINT_INFO("++++++++++++++++ 没找到上一次目标, 按上一次的来 ++++++++++++++++++++\n");
