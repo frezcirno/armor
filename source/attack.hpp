@@ -241,7 +241,6 @@ class Attack : AttackBase {
             }
         }
         m_is.addEvent("preTargets", m_preTargets);
-        // std::cout << "preTargets: " << m_preTargets.size() << std::endl;
     }
     int m_cropNameCounter = 0;  // TODO: magic variable
 
@@ -526,7 +525,7 @@ class Attack : AttackBase {
         /* 目标匹配 + 预测 + 修正弹道 + 计算欧拉角 + 射击策略 */
         if (preLock.owns_lock() && timeStamp > s_latestTimeStamp.load()) {
             s_latestTimeStamp.exchange(timeStamp);
-            float rYaw = 0.0, rPitch = 0.0;
+            float rYaw = 0.0, rPitch = 0.0; // 相对Yaw和Pitch
 
             /* 获得云台全局欧拉角 */
             m_communicator.getGlobalAngle(&gYaw, &gPitch);
@@ -593,10 +592,10 @@ class Attack : AttackBase {
                     s_historyTargets[0].ptsInGimbal.z / 1000.0));
                 m_is.addText(cv::format("rPitch %.3f", rPitch));
                 m_is.addText(cv::format("rYaw   %.3f", rYaw));
-                std::cout << "gYaw:   " << gYaw << std::endl;
-                std::cout << "gPitch: " << gPitch << std::endl;
-                std::cout << "rPitch:   " << rPitch << std::endl;
-                std::cout << "rYaw:   " << rYaw << std::endl;
+                // std::cout << "gYaw:   " << gYaw << std::endl;
+                // std::cout << "gPitch: " << gPitch << std::endl;
+                // std::cout << "rPitch:   " << rPitch << std::endl;
+                // std::cout << "rYaw:   " << rYaw << std::endl;
                 m_is.addText(cv::format("rYaw + gYaw   %.3f", rYaw - gYaw));
             }
             /* 8.通过PID对yaw进行修正（参数未修改） */
