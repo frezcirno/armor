@@ -209,7 +209,7 @@ class Attack : AttackBase {
                 continue;
             lights.emplace_back(_light);
         }
-        m_is.addEvent("lights", lights);
+        m_is.addEvent("lights", lights, m_startPt);
 
         /* 对筛选出的灯条按x大小进行排序 */
         std::sort(lights.begin(), lights.end(), [](const Light &a_, const Light &b_) -> bool {
@@ -360,8 +360,9 @@ class Attack : AttackBase {
      * Get the distance between a sort::Track and a armor::Target
      */
     static float distance(const sort::Track& track, const Target& target) {
-        auto dist = track.bbox.tl() + track.bbox.br() - target.pixelPts2f.tl - target.pixelPts2f.br;
-        return dist.x + dist.y;
+        auto dist1 = track.bbox.tl() - target.pixelPts2f.tl;
+        auto dist2 = track.bbox.br() - target.pixelPts2f.br;
+        return abs(dist1.x) + abs(dist1.y) + abs(dist2.x) + abs(dist2.y);
     }
 
     /**
@@ -390,7 +391,7 @@ class Attack : AttackBase {
         std::vector<sort::Track> tracks = s_sortTracker->update(bboxs);
         
         m_is.addTracks(tracks);
-        m_is.addText(cv::format("Track Id: %d", s_trackId));
+        m_is.addText(cv::format("Track Id: %ld", s_trackId));
 
         /* 选择本次打击目标 */
         if (s_historyTargets.empty()) {
@@ -500,9 +501,8 @@ class Attack : AttackBase {
             m_is.addEvent("Bounding Rect", latestShootRect);
             m_bgr = m_bgr(latestShootRect);
             m_startPt = latestShootRect.tl();
-            // m_is.addText(cv::format("m_startPt.x = %d", m_startPt.x));
-            // m_is.addText(cv::format("m_startPt.y = %d", m_startPt.y));
         }
+        m_is.addText(cv::format("Start Point: %2d %2d", m_startPt.x, m_startPt.y));
 
         /* 2.预检测 */
         m_preDetect();
