@@ -208,6 +208,7 @@ def kill_all():
 
 
 def start():
+    kill_all()
     _name = "nohup_%d" % _log_time 
     _nameerr = "nohuperr_%d" % _log_time 
     res = check_config()
