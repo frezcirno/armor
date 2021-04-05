@@ -119,7 +119,7 @@ struct Camera {
         _pitch = _pitch > 0 ? _pitch : 360 + _pitch;
         newpts.x = pts.x;
         newpts.z = pts.z;
-        newpts.y = sin(_pitch / 180 * CV_PI) * cv::sqrt(newpts.x * newpts.x + newpts.z * newpts.z);
+        newpts.y = tan(_pitch / 180 * CV_PI) * cv::sqrt(newpts.x * newpts.x + newpts.z * newpts.z);
     }
 
     /**
@@ -130,7 +130,11 @@ struct Camera {
     void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts, float bulletSpeed) {
         float _pitch, _yaw, _newpitch;
         convertPts2Euler(pts, &_yaw, &_pitch);
-        float compensateGravity_pitch_tan = tan(_pitch / 180 * CV_PI) + (0.5 * 9.8 * (pts.z / bulletSpeed) * (pts.z / bulletSpeed)) / cos(_pitch / 180 * CV_PI);
+        int minus = 1;
+        if(_pitch < 0)
+            minus = -1
+        float compensateGravity_pitch_tan = abs(tan(_pitch / 180 * CV_PI)) + (0.5 * 9.8 * (pts.z / bulletSpeed) * (pts.z / bulletSpeed)) / cv::sqrt(pts.x * pts.x + pts.z * pts.z);
+        compensateGravity_pitch_tan *= minus;        
         _newpitch = atan(compensateGravity_pitch_tan) / CV_PI * 180;
         convertEuler2Pts(newPts, _newpitch, pts);
     }
@@ -397,7 +401,12 @@ struct Target {                          // TODO: 结构体太大了，尝试优
      */
     void correctTrajectory_and_calcEuler(float bulletSpeed) {
         /* 弹道修正, TODO */
-        stCamera.correctTrajectory(ptsInGimbal, ptsInShoot, bulletSpeed);  //重力补偿修正
+        if(bulletSpeed){
+            stCamera.correctTrajectory(ptsInGimbal, ptsInShoot, bulletSpeed);  //重力补偿修正
+        }
+        else{
+            ptsInShoot = ptsInGimbal;
+        }
         DEBUG("stCamera.correctTrajectory")
         /* 计算欧拉角 */
         Camera::convertPts2Euler(ptsInShoot, &rYaw, &rPitch);  //计算Pitch,Yaw传递给电控
