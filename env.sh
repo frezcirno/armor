@@ -33,14 +33,14 @@ echo ""
 echo -n "是否要安装相机SDK [Y/n]? "
 read ANSWER
 if [ "$ANSWER" = "Y" -o "$ANSWER" = "y" -o "$ANSWER" = "" ]; then
-    if [[ ! -f ~/sdk ]]; then
+    if [[ ! -f /tmp/sdk ]]; then
         echo "Downloading Camera SDK......."
         pushd "${START_DIR}" >>/dev/null
         tar -zxf sdk.tgz -C ~
         popd >>/dev/null
     fi
     echo "Installing Camera SDK......."
-    pushd ~/sdk >>/dev/null
+    pushd /tmp/sdk >>/dev/null
     chmod +x dahua/MVviewer_Ver2.2.5_Linux_x86_Build20200910.run
     echo "yes\nyes\nyes\n" | ./dahua/MVviewer_Ver2.2.5_Linux_x86_Build20200910.run --nox11
     mv mindvision/linuxSDK_V2.1.0.12 /opt/mindvision
@@ -51,14 +51,14 @@ echo ""
 echo -n "是否要安装 Serial 库（需要访问 Github） [Y/n]? "
 read ANSWER
 if [ "$ANSWER" = "Y" -o "$ANSWER" = "y" -o "$ANSWER" = "" ]; then
-    if [[ ! -f ~/serial ]]; then
+    if [[ ! -f /tmp/serial ]]; then
         echo "Downloading serial......."
-        git clone --depth 1 https://github.com/wjwwood/serial.git ~/serial
+        git clone --depth 1 https://github.com/wjwwood/serial.git /tmp/serial
     fi
 
     echo "Installing serial......."
-    mkdir -p ~/serial/build
-    pushd ~/serial/build >>/dev/null
+    mkdir -p /tmp/serial/build
+    pushd /tmp/serial/build >>/dev/null
     cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
     make install
     popd >>/dev/null
@@ -68,55 +68,17 @@ echo ""
 echo -n "是否要安装 OpenCV-4.5.1 库（需要访问 Github） [Y/n]? "
 read ANSWER
 if [ "$ANSWER" = "Y" -o "$ANSWER" = "y" -o "$ANSWER" = "" ]; then
-    if [[ ! -f ~/opencv ]]; then
+    if [[ ! -f /tmp/opencv ]]; then
         echo "Downloading opencv......."
-        git clone --depth 1 --branch 4.5.1 https://github.com/opencv/opencv.git ~/opencv
+        git clone --depth 1 --branch 4.5.1 https://github.com/opencv/opencv.git /tmp/opencv
     fi
 
     echo "Installing opencv......."
-    mkdir -p ~/opencv/build
-    pushd ~/opencv/build >>/dev/null
+    mkdir -p /tmp/opencv/build
+    pushd /tmp/opencv/build >>/dev/null
     cmake -j8 ..
     make install 
     popd
 fi
-
-echo ""
-echo -n "是否要下载最新版自瞄代码（需要访问 Github） [Y/n]? "
-read ANSWER
-if [ "$ANSWER" = "Y" -o "$ANSWER" = "y" -o "$ANSWER" = "" ]; then
-    if [[ ! -d ~/armor ]]; then
-        echo "Downloading armor code......."
-        git clone --branch master https://github.com/frezcirno/armor ~/armor
-    fi
-    echo "Copying TensorFlow libraries......."
-    pushd "${START_DIR}" >>/dev/null
-    tar -zxf tensorflow.tgz -C ~/armor
-    popd >>/dev/null
-    echo "Building executable......."
-    mkdir -p ~/armor/build
-    pushd ~/armor/build >>/dev/null
-    cmake .. && make
-    popd >>/dev/null
-    echo "Download Armor code with TensorFlow C++ lib .......OK"
-    echo "Location: ~/armor"
-fi
-
-# 守护进程目前存在一些问题
-# echo ""
-# echo -n "Download Armor Daemon [Y/n]? "
-# read ANSWER
-# if [ "$ANSWER" = "Y" -o "$ANSWER" = "y" -o "$ANSWER" = "" ]; then
-#     if [[ ! -d ~/daemon ]]; then
-#         echo "Downloading daemon......."
-#         pushd "${START_DIR}" >>/dev/null
-#         tar -zxf daemon.tgz -C ~
-#         popd >>/dev/null
-#     fi
-#     echo "Configure daemon......."
-#     sed -i -e "s/\/root\/daemon\/daemonctl.py\ start\ --nohup\ --all//g" -e "s/exit\ 0/\/root\/daemon\/daemonctl.py\ start\ --nohup\ --all\nexit\ 0/g" /etc/rc.local 
-#     chmod +x ~/daemon/daemonctl.py
-#     ~/daemon/daemonctl.py reset
-# fi
 
 echo "OK"

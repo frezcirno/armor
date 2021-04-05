@@ -218,7 +218,7 @@ def start():
                 os.path.join(os.path.dirname(__file__), "daemon.py"), config_list[i]['daemon'])
             print_info(cmd)
             print_info()
-            os.system("nohup `%s 1>\"/home/sp/opt/nohup/%s_%d.log\" 2>\"/home/sp/opt/nohup/%s_%d.log\"` & " % (cmd,_name,i,_nameerr,i) )
+            os.system("nohup `%s 1>\"/tmp/%s_%d.log\" 2>\"/tmp/%s_%d.log\"` & " % (cmd,_name,i,_nameerr,i) )
         return
     if res[args.index]:
         cmd = "python3 %s %s" % (
@@ -226,7 +226,7 @@ def start():
         print_info(cmd)
         print_info()
         if args.nohup:
-            os.system("nohup `%s 1>\"/home/sp/opt/nohup/%s.log\" 2>\"/home/sp/opt/nohup/%s.log\"` &" % (cmd,_name,_nameerr))
+            os.system("nohup `%s 1>\"/tmp/%s.log\" 2>\"/tmp/%s.log\"` &" % (cmd,_name,_nameerr))
         else:
             os.system(cmd)
 
