@@ -7,9 +7,11 @@
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
-#include <stdio.h>
+#include <cstdio>
+#include <climits>
 
 #include "base.hpp"
+#include "sort/sort.h"
 #include "semaphore.hpp"
 
 using std::cout;
@@ -268,12 +270,12 @@ class ImageShowClient : ImageShowBase {
      * @param contours
      * @param offset (ROI使用)左上角坐标
      */
-    void addContours(const cv::String &eventName, const std::vector<std::vector<cv::Point2i>> &contours, const cv::Point2i &offset = cv::Point()) {
+    void addContours(const cv::String &eventName, const std::vector<std::vector<cv::Point2i>> &contours, const cv::Point &offset) {
         if (s_mode == 0 || s_mode == 1)
             return;
         cv::Scalar currentColor = m_getCurrentColor();
         int thickness = 1;
-        cv::drawContours(m_frame, contours, -1, currentColor, thickness, 8, cv::noArray(), 2147483647, offset);
+        cv::drawContours(m_frame, contours, -1, currentColor, thickness, 8, cv::noArray(), INT_MAX, offset);
         m_putMarginText(eventName + cv::format(": %d", int(contours.size())), currentColor, thickness);
     }
 
@@ -283,7 +285,7 @@ class ImageShowClient : ImageShowBase {
      * @param contours
      * @param offset
      */
-    void addEvent(const cv::String &eventName, const std::vector<std::vector<cv::Point2i>> &contours, const cv::Point2i &offset = cv::Point()) {
+    void addEvent(const cv::String &eventName, const std::vector<std::vector<cv::Point2i>> &contours, const cv::Point &offset) {
         addContours(eventName, contours, offset);
     }
 
@@ -292,13 +294,14 @@ class ImageShowClient : ImageShowBase {
      * @param eventName 事件名, 显示在左上角
      * @param lights 绘制对象
      */
-    void addLights(const cv::String &eventName, const std::vector<armor::Light> &lights) {
+    void addLights(const cv::String &eventName, const std::vector<armor::Light> &lights, const cv::Point &offset) {
         if (s_mode == 0 || s_mode == 1)
             return;
         cv::Scalar currentColor = m_getCurrentColor();
         int thickness = 1;
         for (const auto &light : lights) {
-            cv::line(m_frame, light.topPt, light.bottomPt, currentColor, thickness);
+            cv::line(m_frame, cv::Point(light.topPt.x + offset.x, light.topPt.y + offset.y), 
+                              cv::Point(light.bottomPt.x + offset.x, light.bottomPt.y + offset.y), currentColor, thickness);
         }
         m_putMarginText(eventName + cv::format(": %d", int(lights.size())), currentColor, thickness);
     }
@@ -308,8 +311,8 @@ class ImageShowClient : ImageShowBase {
      * @param eventName 事件名, 显示在左上角
      * @param lights 绘制对象
      */
-    void addEvent(const cv::String &eventName, const std::vector<armor::Light> &lights) {
-        addLights(eventName, lights);
+    void addEvent(const cv::String &eventName, const std::vector<armor::Light> &lights, const cv::Point &offset) {
+        addLights(eventName, lights, offset);
     }
 
     /**
@@ -323,14 +326,28 @@ class ImageShowClient : ImageShowBase {
         cv::Scalar currentColor = m_getCurrentColor();
         int thickness = 1;
         for (const auto &_tar : targets) {
-            cv::line(m_frame, _tar.pixelPts2f.tl, _tar.pixelPts2f.br, currentColor, thickness);
-            cv::putText(m_frame, "5", _tar.pixelPts2f.tl, cv::FONT_HERSHEY_PLAIN, 1, currentColor);
-            cv::putText(m_frame, "1", _tar.pixelPts2f.bl, cv::FONT_HERSHEY_PLAIN, 1, currentColor);
-            cv::putText(m_frame, "2", _tar.pixelPts2f.br, cv::FONT_HERSHEY_PLAIN, 1, currentColor);
-            cv::putText(m_frame, "3", _tar.pixelPts2f.tr, cv::FONT_HERSHEY_PLAIN, 1, currentColor);
-            cv::line(m_frame, _tar.pixelPts2f.bl, _tar.pixelPts2f.tr, currentColor, thickness);
+            cv::line(m_frame, _tar.pixelPts2f.tl, _tar.pixelPts2f.bl, currentColor, thickness);
+            cv::line(m_frame, _tar.pixelPts2f.tr, _tar.pixelPts2f.br, currentColor, thickness);
         }
         m_putMarginText(eventName + cv::format(": %d", int(targets.size())), currentColor, thickness);
+    }
+
+
+    /**
+     * 绘制目标
+     * @param eventName 事件名, 显示在左上角
+     * @param tracks 绘制对象
+     */
+    void addTracks(const std::vector<sort::Track> &tracks) {
+        if (s_mode == 0 || s_mode == 1)
+            return;
+        cv::Scalar currentColor = m_getCurrentColor();
+        int thickness = 1;
+        for (const auto &_tar : tracks) {
+            cv::rectangle(m_frame, _tar.bbox.tl(), _tar.bbox.br(), currentColor, thickness);
+            cv::putText(m_frame, cv::format("%ld", _tar.id), _tar.bbox.tl() + cv::Point2f(12, 0),
+                cv::FONT_HERSHEY_PLAIN, s_fontSize, currentColor);
+        }
     }
 
     /**
@@ -439,7 +456,7 @@ class ImageShowClient : ImageShowBase {
         if (s_mode == 0)
             return;
         cv::Scalar currentColor = m_getCurrentColor();
-        int thickness = 1;
+        int thickness = 3;
         cv::line(m_frame, target.pixelPts2f.tl, target.pixelPts2f.bl, currentColor, thickness);
         cv::line(m_frame, target.pixelPts2f.bl, target.pixelPts2f.br, currentColor, thickness);
         cv::line(m_frame, target.pixelPts2f.br, target.pixelPts2f.tr, currentColor, thickness);

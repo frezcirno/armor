@@ -34,9 +34,9 @@ const std::string input_name = "input_1:0";
 const std::string output_name = "y/Sigmoid:0";
 const int fixedSize = 32;
 
-const unsigned int max_age = 1;
-const unsigned int min_hits = 3;
-const double iou_threshold = 0.3;
+const unsigned int max_age = 10;
+const unsigned int min_hits = 1;
+const double iou_threshold = 0.1;
 
 namespace armor {
 /**
@@ -50,7 +50,7 @@ class AttackBase {
     static Kalman kalman;                              // 卡尔曼滤波
     static std::unique_ptr<tensorflow::Session, void(*)(tensorflow::Session*)> s_session; // 分类器
     static std::unique_ptr<sort::SORT> s_sortTracker;  // DeepSORT 跟踪
-    static std::deque<size_t> s_trackId;               // DeepSORT 跟踪对象Id
+    static size_t s_trackId;               // DeepSORT 跟踪对象Id
 
     /**
      * @param image 图片
@@ -103,7 +103,7 @@ std::deque<Target> AttackBase::s_historyTargets;
 Kalman AttackBase::kalman;
 decltype(AttackBase::s_session) AttackBase::s_session = AttackBase::initTFSession();
 decltype(AttackBase::s_sortTracker) AttackBase::s_sortTracker(std::make_unique<sort::SORT>(iou_threshold, max_age, min_hits));
-std::deque<size_t> AttackBase::s_trackId;
+size_t AttackBase::s_trackId;
 /**
  * 自瞄主类
  */
@@ -209,7 +209,7 @@ class Attack : AttackBase {
                 continue;
             lights.emplace_back(_light);
         }
-        m_is.addEvent("lights", lights);
+        m_is.addEvent("lights", lights, m_startPt);
 
         /* 对筛选出的灯条按x大小进行排序 */
         std::sort(lights.begin(), lights.end(), [](const Light &a_, const Light &b_) -> bool {
@@ -241,7 +241,6 @@ class Attack : AttackBase {
             }
         }
         m_is.addEvent("preTargets", m_preTargets);
-        std::cout << "preTargets: " << m_preTargets.size() << std::endl;
     }
     int m_cropNameCounter = 0;  // TODO: magic variable
 
@@ -346,7 +345,7 @@ class Attack : AttackBase {
                 auto output_c = outputs[0].scalar<float>();
                 float result = output_c();
                 /* 判断正负样本 */
-                if (0.5 < result)
+                if (0 <= result)
                     m_targets.emplace_back(_tar);
             } else
                 continue;
@@ -354,6 +353,15 @@ class Attack : AttackBase {
         m_is.addClassifiedTargets("After Classify", m_targets);
         std::cout << "Targets: " << m_targets.size() << std::endl;
         DEBUG("m_classify end")
+    }
+
+    /**
+     * Get the distance between a sort::Track and a armor::Target
+     */
+    static float distance(const sort::Track& track, const Target& target) {
+        auto dist1 = track.bbox.tl() - target.pixelPts2f.tl;
+        auto dist2 = track.bbox.br() - target.pixelPts2f.br;
+        return abs(dist1.x) + abs(dist1.y) + abs(dist2.x) + abs(dist2.y);
     }
 
     /**
@@ -368,7 +376,7 @@ class Attack : AttackBase {
             /* 超过30帧就删除 */
             if (iter->rTick > 30) {
                 s_historyTargets.erase(iter, s_historyTargets.end());
-                s_trackId.erase(iter - s_historyTargets.begin() + s_trackId.begin(), s_trackId.end());
+                if (s_historyTargets.empty()) s_trackId = -1;
                 break;
             }
         }
@@ -379,7 +387,10 @@ class Attack : AttackBase {
         {
             bboxs.emplace_back(tar.pixelPts2f.toRect());
         }
-        auto tracks = s_sortTracker->update(bboxs);
+        std::vector<sort::Track> tracks = s_sortTracker->update(bboxs);
+        
+        m_is.addTracks(tracks);
+        m_is.addText(cv::format("Track Id: %ld", s_trackId));
 
         /* 选择本次打击目标 */
         if (s_historyTargets.empty()) {
@@ -393,11 +404,10 @@ class Attack : AttackBase {
                 PRINT_INFO("++++++++++++++++ 发现目标: 选择最近的 ++++++++++++++++++++\n");
                 s_historyTargets.emplace_front(*minTarElem);
                 // 找到最近的trackId并记录下来
-                s_trackId.push_front(std::min_element(tracks.begin(), tracks.end(), [&](const sort::Track& a, const sort::Track& b) {
-                    auto aDist = a.bbox.tl() - minTarElem->pixelPts2f.tl + b.bbox.br() - minTarElem->pixelPts2f.br;
-                    auto bDist = a.bbox.tl() - minTarElem->pixelPts2f.tl + b.bbox.br() - minTarElem->pixelPts2f.br;
-                    return aDist.x + aDist.y < bDist.x + bDist.y;
-                }) - tracks.begin());
+                auto minTrackElem = std::min_element(tracks.begin(), tracks.end(), [&](const sort::Track& a, const sort::Track& b) {
+                    return distance(a, *minTarElem) < distance(b, *minTarElem);
+                });
+                s_trackId = (minTrackElem != tracks.end() ? minTrackElem->id : s_trackId);
                 return SEND_STATUS_AUTO_AIM;  //瞄准
             } else {
                 return SEND_STATUS_AUTO_NOT_FOUND;  //未找到
@@ -405,19 +415,18 @@ class Attack : AttackBase {
         } else {
             /* case B: 之前选过打击目标了, 得找到一样的目标 */
             PRINT_INFO("++++++++++++++++ 开始寻找上一次目标 ++++++++++++++++++++\n");
-            auto trackElem = std::find_if(tracks.begin(), tracks.end(), [&](const sort::Track& track){
-                return track.id == s_trackId.front();
-            });
+            auto trackElem = s_trackId != -1 ? 
+                std::find_if(tracks.begin(), tracks.end(), [&](const sort::Track& track){
+                    return track.id == s_trackId;
+                }) 
+                : tracks.end();
 
             if (trackElem != tracks.end()) {
                 PRINT_INFO("++++++++++++++++ 找到上一次目标 ++++++++++++++++++++\n");
-                auto closestTarget = std::min_element(m_targets.begin(), m_targets.end(), [&](const Target &a_, const Target &b_) {
-                    auto aDist = trackElem->bbox.tl() - a_.pixelPts2f.tl + trackElem->bbox.br() - b_.pixelPts2f.br;
-                    auto bDist = trackElem->bbox.tl() - a_.pixelPts2f.tl + trackElem->bbox.br() - b_.pixelPts2f.br;
-                    return aDist.x + aDist.y < bDist.x + bDist.y;
+                auto closestTarget = std::min_element(m_targets.begin(), m_targets.end(), [&](const Target &a, const Target &b) {
+                    return distance(*trackElem, a) < distance(*trackElem, b);
                 }); // (一定存在)
                 s_historyTargets.emplace_front(*closestTarget);
-                s_trackId.emplace_front(s_trackId.front());
                 return SEND_STATUS_AUTO_AIM;  //瞄准
             } else {
                 PRINT_INFO("++++++++++++++++ 没找到上一次目标, 按上一次的来 ++++++++++++++++++++\n");
@@ -491,9 +500,8 @@ class Attack : AttackBase {
             m_is.addEvent("Bounding Rect", latestShootRect);
             m_bgr = m_bgr(latestShootRect);
             m_startPt = latestShootRect.tl();
-            // m_is.addText(cv::format("m_startPt.x = %d", m_startPt.x));
-            // m_is.addText(cv::format("m_startPt.y = %d", m_startPt.y));
         }
+        m_is.addText(cv::format("Start Point: %2d %2d", m_startPt.x, m_startPt.y));
 
         /* 2.预检测 */
         m_preDetect();
@@ -517,7 +525,7 @@ class Attack : AttackBase {
         /* 目标匹配 + 预测 + 修正弹道 + 计算欧拉角 + 射击策略 */
         if (preLock.owns_lock() && timeStamp > s_latestTimeStamp.load()) {
             s_latestTimeStamp.exchange(timeStamp);
-            float rYaw = 0.0, rPitch = 0.0;
+            float rYaw = 0.0, rPitch = 0.0; // 相对Yaw和Pitch
 
             /* 获得云台全局欧拉角 */
             m_communicator.getGlobalAngle(&gYaw, &gPitch);
@@ -531,7 +539,7 @@ class Attack : AttackBase {
             emSendStatusA statusA = m_match();
 
             if (!s_historyTargets.empty()) {
-                m_is.addFinalTargets("selected", s_historyTargets[0]);
+                m_is.addFinalTargets("final", s_historyTargets[0]);
                 /* 5.预测部分（原三维坐标系卡尔曼滤波） */
 
                 /* 6.修正弹道并计算欧拉角 */
@@ -584,10 +592,10 @@ class Attack : AttackBase {
                     s_historyTargets[0].ptsInGimbal.z / 1000.0));
                 m_is.addText(cv::format("rPitch %.3f", rPitch));
                 m_is.addText(cv::format("rYaw   %.3f", rYaw));
-                std::cout << "gYaw:   " << gYaw << std::endl;
-                std::cout << "gPitch: " << gPitch << std::endl;
-                std::cout << "rPitch:   " << rPitch << std::endl;
-                std::cout << "rYaw:   " << rYaw << std::endl;
+                // std::cout << "gYaw:   " << gYaw << std::endl;
+                // std::cout << "gPitch: " << gPitch << std::endl;
+                // std::cout << "rPitch:   " << rPitch << std::endl;
+                // std::cout << "rYaw:   " << rYaw << std::endl;
                 m_is.addText(cv::format("rYaw + gYaw   %.3f", rYaw - gYaw));
             }
             /* 8.通过PID对yaw进行修正（参数未修改） */
