@@ -128,11 +128,12 @@ struct Camera {
      * 考虑到重力对子弹的影响，对云台所需仰角进行补偿
      */
     void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts, float bulletSpeed) {
+        bulletSpeed = 120;
         float _pitch, _yaw, _newpitch;
         convertPts2Euler(pts, &_yaw, &_pitch);
         int minus = 1;
         if(_pitch < 0)
-            minus = -1
+            minus = -1;
         float compensateGravity_pitch_tan = abs(tan(_pitch / 180 * CV_PI)) + (0.5 * 9.8 * (pts.z / bulletSpeed) * (pts.z / bulletSpeed)) / cv::sqrt(pts.x * pts.x + pts.z * pts.z);
         compensateGravity_pitch_tan *= minus;        
         _newpitch = atan(compensateGravity_pitch_tan) / CV_PI * 180;

@@ -319,7 +319,7 @@ class CommunicatorSerial : public Communicator {
                                     if(m_bulletSpeed.size() >10) m_bulletSpeed.pop_back();
                                     if (m_gYaws.size() > 10) m_gYaws.pop_back();
                                     if (m_gPitches.size() > 10) m_gPitches.pop_back();
-                                    printf("receive (yaw, pitch,bulletSpeed) = (%3.2f, %3.2f,%3.2f)\n", frame.yaw, frame.pitch,frame.speed);
+                                    printf("receive (yaw, pitch, bulletSpeed) = (%3.2f, %3.2f, %3.2f)\n", frame.yaw, frame.pitch, frame.speed);
                                 }
                                 /* 更新值 end */
                             }

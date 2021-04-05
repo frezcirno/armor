@@ -553,12 +553,12 @@ class Attack : AttackBase {
 
                 if (m_isEnablePredict) {
                     cout << "m_isEnablePredict start !" << endl;
-                    cout << "Now  rPitch is " << rPitch << endl;
-                    cout << "Now  rYaw is" << rYaw << endl;
+                    m_is.addText(cv::format("b4pdct rPitch %4.0f", rPitch));
+                    m_is.addText(cv::format("b4pdct rYaw %4.0f", rYaw));
                     if (statusA == SEND_STATUS_AUTO_AIM) { /* 获取世界坐标点 */
                         m_communicator.getGlobalAngle(&gYaw, &gPitch);
-                        cout << "gPitch=" << gPitch << endl;
-                        cout << "gYaw=" << gYaw << endl;
+                        m_is.addText(cv::format("gPitch %4.0f", gPitch));
+                        m_is.addText(cv::format("gYaw %4.0f", gYaw));
                         /* 卡尔曼滤波初始化/参数修./att正 */
                         if (s_historyTargets.size() == 1)
                             //*kalman.clear_and_init(s_historyTargets[0].ptsInWorld, timeStamp);
@@ -572,8 +572,6 @@ class Attack : AttackBase {
                     if (s_historyTargets.size() > 1) {
                         kalman.predict(0.1, &s_historyTargets[0].predictPitch, &s_historyTargets[0].predictYaw);
                         /* 转换为云台坐标点 */
-                        cout << "predictPitch:" << s_historyTargets[0].predictPitch << endl;
-                        cout << "predictYaw" << s_historyTargets[0].predictYaw << endl;
                         m_is.addText(cv::format("predictPitch %4.0f", s_historyTargets[0].predictPitch));
                         m_is.addText(cv::format("predictYaw %4.0f", s_historyTargets[0].predictYaw));
                     }
@@ -590,13 +588,6 @@ class Attack : AttackBase {
                     s_historyTargets[0].ptsInGimbal.x / 1000.0,
                     s_historyTargets[0].ptsInGimbal.y / 1000.0,
                     s_historyTargets[0].ptsInGimbal.z / 1000.0));
-                m_is.addText(cv::format("rPitch %.3f", rPitch));
-                m_is.addText(cv::format("rYaw   %.3f", rYaw));
-                // std::cout << "gYaw:   " << gYaw << std::endl;
-                // std::cout << "gPitch: " << gPitch << std::endl;
-                // std::cout << "rPitch:   " << rPitch << std::endl;
-                // std::cout << "rYaw:   " << rYaw << std::endl;
-                m_is.addText(cv::format("rYaw + gYaw   %.3f", rYaw - gYaw));
             }
             /* 8.通过PID对yaw进行修正（参数未修改） */
             /*
@@ -610,6 +601,12 @@ class Attack : AttackBase {
 
             newYaw = cv::abs(newYaw) < 0.3 ? rYaw : newYaw;
             */
+            // rYaw = 0;
+            // rPitch = 0;
+            // statusA = SEND_STATUS_AUTO_NOT_FOUND;
+            m_is.addText(cv::format("rPitch %.3f", rPitch));
+            m_is.addText(cv::format("rYaw   %.3f", rYaw));
+            m_is.addText(cv::format("statusA   %.3x", statusA));
 
             /* 9.发给电控 */
             m_communicator.send(rYaw, -rPitch, statusA, SEND_STATUS_WM_PLACEHOLDER);
