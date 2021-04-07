@@ -37,8 +37,9 @@
 /* 红色 */
 #define PRINT_ERROR(content, ...) printf("\033[31m" content "\033[0m", ##__VA_ARGS__)
 
-const double g = 9.8; 
-const double x = 0,y = 0,pitch = 0;
+constexpr double g = 9.8; 
+constexpr double x = 0, y = 0, pitch = 0;
+
 namespace armor {
 
 /**
@@ -216,12 +217,11 @@ struct Camera {
      * 考虑到重力对子弹的影响，对云台所需仰角进行补偿
      */
     void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts, float bulletSpeed) {
-        double k1,newpitch;
-        k1 = DDSolver::get_k1(bulletSpeed,pitch,x,y);
-        DDSolver dd = DDSolver(k1);
-        newpitch = dd.pitchAdvance(bulletSpeed,pts.z*0.01,pts.y*0.01);
-        //newpitch = dd.pitchNaive(bulletSpeed,pts.z*0.01,pts.y*0.01);
-
+        bulletSpeed = 12;
+        // double k1 = DDSolver::get_k1(bulletSpeed,pitch,x,y);
+        DDSolver dd = DDSolver(0.1);
+        // double newpitch = dd.pitchAdvance(bulletSpeed,pts.z*0.01,pts.y*0.01);
+        double newpitch = dd.pitchNaive(bulletSpeed, cv::sqrt(pts.x * pts.x + pts.z * pts.z) * 0.01, pts.y * 0.01);
         convertEuler2Pts(newPts, newpitch, pts);
     }
 } stCamera("../data/camera6mm.xml");

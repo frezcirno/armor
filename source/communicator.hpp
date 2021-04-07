@@ -13,7 +13,7 @@
 #include <serial/serial.h>
 
 #include "crc_table.hpp"
-#include "usbio/include/usbio.hpp"
+#include "usbio/usbio.hpp"
 
 #include "base.hpp"
 
@@ -339,7 +339,7 @@ class CommunicatorSerial : public Communicator {
  */
 class CommunicatorUSB : public Communicator {
   private:
-    superpower::usbio::spUSB *m_usb;
+    usbio::spUSB *m_usb;
 
   public:
     explicit CommunicatorUSB() : m_usb(nullptr) {}
@@ -350,7 +350,7 @@ class CommunicatorUSB : public Communicator {
      * @param pid 0x5620 16进制
      */
     void open(int vid, int pid) {
-        m_usb = new superpower::usbio::spUSB(vid, pid);
+        m_usb = new usbio::spUSB(vid, pid);
     }
 
     void send(float rYaw, float rPitch, emSendStatusA extra0, emSendStatusB extra1) override {

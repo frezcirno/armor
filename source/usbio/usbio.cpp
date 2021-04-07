@@ -1,4 +1,4 @@
-#include "../include/usbio.hpp"
+#include "usbio/usbio.hpp"
 
 namespace superpower {
 

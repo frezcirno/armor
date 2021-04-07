@@ -1,6 +1,4 @@
-#include "../include/utility.hpp"
-
-namespace superpower {
+#include "usbio/utility.hpp"
 
 namespace utility {
     double getSecond(void) {
@@ -161,5 +159,3 @@ namespace utility {
     }
 
 }  // namespace utility
-
-}  // namespace superpower
