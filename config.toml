@@ -46,3 +46,11 @@ maxPitchError = -0.6 #-0.4
 thre = 60
 close = true
 
+# 弹道拟合
+[correctTrajectory]
+x = 0.0
+y = 0.0
+pitch = 0.0
+ifAdvance = false  #是否预测空气阻力
+
+

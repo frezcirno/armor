@@ -75,13 +75,100 @@ struct FrameInfo {
 } stFrameInfo;
 
 /**
+ * 弹道拟合
+ * 
+ */
+class DDSolver
+{
+  private:
+    double k1 = 0.1;  // 和空气阻力有关的系数，等于(k0 / m)，pitchAdvance中用
+
+  public:
+    DDSolver(double k1 = 0.1) : k1(k1) {}
+
+    /**
+     * 只考虑重力的弹道模型，根据以下三个值得出pitch角
+     * @param bulletSpeed 弹速，单位m/s
+     * @param x 目标离自己的水平距离，单位m
+     * @param y 目标离自己的垂直距离，正值表示比自己高，负值反之，单位m
+     */
+    double pitchNaive(double bulletSpeed, double x, double y)
+    {
+        double iterY = y, pitch_;
+        double diff;
+        int t = 0;
+        do {
+            pitch_ = atan2(iterY, x);
+            double vx_ = bulletSpeed * cos(pitch_);
+            double vy_ = bulletSpeed * sin(pitch_);
+            double t_ = x / vx_;
+            double y_ = vy_ * t_ - 0.5 * g * t_ * t_;
+            diff = y - y_;
+            iterY += diff;
+            // cout << pitch_ * 180 / M_PI << " " << iterY << " " << diff <<
+            // endl;
+        } while (abs(diff) >= 0.001 && ++t < 30);  // 误差小于1mm
+        return pitch_;
+    }
+
+    /**
+     * 考虑水平空气阻力（和重力）的弹道模型，根据以下三个值得出pitch角
+     * @param bulletSpeed 弹速，单位m/s
+     * @param x 目标离自己的水平距离，单位m
+     * @param y 目标离自己的垂直距离，正值表示比自己高，负值反之，单位m
+     */
+    double pitchAdvance(double bulletSpeed, double x, double y)
+    {
+        double iterY = y, pitch_;
+        double diff;
+        int t = 0;
+        do {
+            pitch_ = atan2(iterY, x);
+            double vx_ = bulletSpeed * cos(pitch_);
+            double vy_ = bulletSpeed * sin(pitch_);
+            double t_ = (exp(x * k1) - 1) / (k1 * vx_);
+            double y_ = vy_ * t_ - 0.5 * g * t_ * t_;
+            diff = y - y_;
+            iterY += diff;
+            // cout << pitch_ * 180 / M_PI << " " << iterY << " " << diff <<
+            // endl;
+        } while (abs(diff) >= 0.001 && ++t < 30);  // 误差小于1mm
+        return pitch_;
+    }
+
+    /**
+     * 在考虑水平空气阻力（和重力）的弹道模型中，根据一组已知的四个值反推k1
+     * @param bulletSpeed 弹速，单位m/s
+     * @param pitch 仰角，单位rad
+     * @param x 目标离自己的水平距离，单位m
+     * @param y 目标离自己的垂直距离，正值表示比自己高，负值反之，单位m
+     */
+    static double get_k1(double bulletSpeed, double pitch, double x, double y
+    {
+        double vx0 = bulletSpeed * cos(pitch);
+        double vy0 = bulletSpeed * sin(pitch);
+        double t0 = (vy0 + sqrt(vy0 * vy0 - 2 * g * y)) / g;
+        double k1 = 2 * (vx0 * t0 - x) / (x * x);
+        double diff;
+        double alpha = 0.01;  // 类似学习率
+        int t = 0;
+        do {
+            double t_ = (exp(x * k1) - 1) / (k1 * vx0);
+            double y_ = vy0 * t_ - 0.5 * g * t_ * t_;
+            diff = y - y_;
+            k1 -= alpha * diff;
+            // cout << k1 << " " << diff << endl;
+        } while (abs(diff) >= 0.001 && ++t < 1000);  // 误差小于1mm
+        return k1;
+    }
+};
+
+/**
  * 相机结构体
  */
 struct Camera {
     cv::Mat camMat;
     cv::Mat distCoeffs;
-    cv::Mat m_ABC_x, m_ABC_y;
-
     /**
      * @param path 相机参数文件路径
      * 结构体构造函数
@@ -107,13 +194,12 @@ struct Camera {
         *pPitch = -_pitch;
         *pYaw = _yaw > 180 ? _yaw - 360 : _yaw;
     }
-
     /**
-     * @param newpts 新的三维坐标
-     * @param pitch 新的pitch
-     * @param pts 原三维坐标
-     * 三维坐标修改pitch分量工具函数
-     */
+    * @param newpts 新的三维坐标
+    * @param pitch 新的pitch
+    * @param pts 原三维坐标
+    * 三维坐标修改pitch分量工具函数
+    */
     static void convertEuler2Pts(cv::Point3d &newpts, float pitch, cv::Point3d &pts) {
         float _pitch = -pitch;
         _pitch = _pitch > 0 ? _pitch : 360 + _pitch;
@@ -128,16 +214,21 @@ struct Camera {
      * 考虑到重力对子弹的影响，对云台所需仰角进行补偿
      */
     void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts, float bulletSpeed) {
-        bulletSpeed = 120;
-        float _pitch, _yaw, _newpitch;
-        convertPts2Euler(pts, &_yaw, &_pitch);
-        int minus = 1;
-        if(_pitch < 0)
-            minus = -1;
-        float compensateGravity_pitch_tan = abs(tan(_pitch / 180 * CV_PI)) + (0.5 * 9.8 * (pts.z / bulletSpeed) * (pts.z / bulletSpeed)) / cv::sqrt(pts.x * pts.x + pts.z * pts.z);
-        compensateGravity_pitch_tan *= minus;        
-        _newpitch = atan(compensateGravity_pitch_tan) / CV_PI * 180;
-        convertEuler2Pts(newPts, _newpitch, pts);
+        double x,y,pitch,k1,newpitch;
+        bool ifAdvanced;   //是否预测空气阻力
+        x = armor::stConfig.get<std::double>("correctTrajectory.x")
+        y = armor::stConfig.get<std::double>("correctTrajectory.y")
+        pitch = armor::stConfig.get<std::double>("correctTrajectory.pitch")
+        ifAdvanced = armor::stConfig.get<std::bool>("correctTrajectory.ifAdvanced")
+        k1 = DDSolver::get_k1(bulletSpeed,pitch,x,y);
+        DDSolver dd = DDSolver(k1);
+        if(ifAdvanced){
+            newpitch = DDSolver::pitchAdvance(bulletSpeed,ptsInGimbal.z*0.01,ptsInGimbal.y*0.01);
+        }
+        else{
+            newpitch = DDSolver::pitchNaive(bulletSpeed,ptsInGimbal.z*0.01,ptsInGimbal.y*0.01);
+        }
+        convertEuler2Pts(newPts, newpitch, pts);
     }
 } stCamera("../data/camera6mm.xml");
 
@@ -403,7 +494,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
     void correctTrajectory_and_calcEuler(float bulletSpeed) {
         /* 弹道修正, TODO */
         if(bulletSpeed){
-            stCamera.correctTrajectory(ptsInGimbal, ptsInShoot, bulletSpeed);  //重力补偿修正
+            stCamera.correctTrajectory(ptsInGimbal,ptsInShoot,bulletSpeed)
         }
         else{
             ptsInShoot = ptsInGimbal;
