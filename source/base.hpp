@@ -37,6 +37,8 @@
 /* 红色 */
 #define PRINT_ERROR(content, ...) printf("\033[31m" content "\033[0m", ##__VA_ARGS__)
 
+const double g = 9.8; 
+const double x = 0,y = 0,pitch = 0;
 namespace armor {
 
 /**
@@ -143,7 +145,7 @@ class DDSolver
      * @param x 目标离自己的水平距离，单位m
      * @param y 目标离自己的垂直距离，正值表示比自己高，负值反之，单位m
      */
-    static double get_k1(double bulletSpeed, double pitch, double x, double y
+    static double get_k1(double bulletSpeed, double pitch, double x, double y)
     {
         double vx0 = bulletSpeed * cos(pitch);
         double vy0 = bulletSpeed * sin(pitch);
@@ -214,20 +216,12 @@ struct Camera {
      * 考虑到重力对子弹的影响，对云台所需仰角进行补偿
      */
     void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts, float bulletSpeed) {
-        double x,y,pitch,k1,newpitch;
-        bool ifAdvanced;   //是否预测空气阻力
-        x = armor::stConfig.get<std::double>("correctTrajectory.x")
-        y = armor::stConfig.get<std::double>("correctTrajectory.y")
-        pitch = armor::stConfig.get<std::double>("correctTrajectory.pitch")
-        ifAdvanced = armor::stConfig.get<std::bool>("correctTrajectory.ifAdvanced")
+        double k1,newpitch;
         k1 = DDSolver::get_k1(bulletSpeed,pitch,x,y);
         DDSolver dd = DDSolver(k1);
-        if(ifAdvanced){
-            newpitch = DDSolver::pitchAdvance(bulletSpeed,ptsInGimbal.z*0.01,ptsInGimbal.y*0.01);
-        }
-        else{
-            newpitch = DDSolver::pitchNaive(bulletSpeed,ptsInGimbal.z*0.01,ptsInGimbal.y*0.01);
-        }
+        newpitch = dd.pitchAdvance(bulletSpeed,pts.z*0.01,pts.y*0.01);
+        //newpitch = dd.pitchNaive(bulletSpeed,pts.z*0.01,pts.y*0.01);
+
         convertEuler2Pts(newPts, newpitch, pts);
     }
 } stCamera("../data/camera6mm.xml");
@@ -494,7 +488,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
     void correctTrajectory_and_calcEuler(float bulletSpeed) {
         /* 弹道修正, TODO */
         if(bulletSpeed){
-            stCamera.correctTrajectory(ptsInGimbal,ptsInShoot,bulletSpeed)
+            stCamera.correctTrajectory(ptsInGimbal,ptsInShoot,bulletSpeed);
         }
         else{
             ptsInShoot = ptsInGimbal;
