@@ -45,6 +45,7 @@ class DDSolver
      */
     double pitchNaive(double bulletSpeed, double x, double y)
     {
+        std::cout << bulletSpeed << " " << x << " " << y << std::endl;
         double iterY = y, pitch_;
         double diff;
         int t = 0;
@@ -56,8 +57,7 @@ class DDSolver
             double y_ = vy_ * t_ - 0.5 * g * t_ * t_;
             diff = y - y_;
             iterY += diff;
-            // cout << pitch_ * 180 / M_PI << " " << iterY << " " << diff <<
-            // endl;
+            std::cout<<t_<<" "<<y_<<" " << pitch_ * 180 / M_PI << " " << iterY << " " << diff << std::endl;
         } while (abs(diff) >= 0.001 && ++t < 30);  // 误差小于1mm
         return pitch_;
     }
@@ -70,6 +70,7 @@ class DDSolver
      */
     double pitchAdvance(double bulletSpeed, double x, double y)
     {
+        std::cout << bulletSpeed << " " << x << " " << y << std::endl;
         double iterY = y, pitch_;
         double diff;
         int t = 0;
@@ -81,8 +82,7 @@ class DDSolver
             double y_ = vy_ * t_ - 0.5 * g * t_ * t_;
             diff = y - y_;
             iterY += diff;
-            // cout << pitch_ * 180 / M_PI << " " << iterY << " " << diff <<
-            // endl;
+            std::cout <<t_<<" "<<y_<<" "<< pitch_ * 180 / M_PI << " " << iterY << " " << diff << std::endl;
         } while (abs(diff) >= 0.001 && ++t < 30);  // 误差小于1mm
         return pitch_;
     }
@@ -120,6 +120,8 @@ class DDSolver
 struct Camera {
     cv::Mat camMat;
     cv::Mat distCoeffs;
+    DDSolver dd = DDSolver(0.5/0.0034); //DDSolver::get_k1(bulletSpeed,pitch,x,y)
+
     /**
      * @param path 相机参数文件路径
      * 结构体构造函数
@@ -165,12 +167,9 @@ struct Camera {
      * 考虑到重力对子弹的影响，对云台所需仰角进行补偿
      */
     void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts, float bulletSpeed) {
-        bulletSpeed = 12;
-        // double k1 = DDSolver::get_k1(bulletSpeed,pitch,x,y);
-        DDSolver dd = DDSolver(0.1);
-        // double newpitch = dd.pitchAdvance(bulletSpeed,pts.z*0.01,pts.y*0.01);
-        double newpitch = dd.pitchNaive(bulletSpeed, cv::sqrt(pts.x * pts.x + pts.z * pts.z) * 0.01, pts.y * 0.01);
-        convertEuler2Pts(newPts, newpitch, pts);
+        // double newpitch = dd.pitchAdvance(bulletSpeed, cv::sqrt(pts.x * pts.x + pts.z * pts.z) * 0.001, -pts.y*0.001);
+        double newpitch = dd.pitchNaive(bulletSpeed, cv::sqrt(pts.x * pts.x + pts.z * pts.z) * 0.001, -pts.y * 0.001);
+        convertEuler2Pts(newPts, newpitch / M_PI * 180, pts);
     }
 } stCamera("../data/camera6mm.xml");
 
@@ -434,6 +433,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
     /**
      */
     void correctTrajectory_and_calcEuler(float bulletSpeed) {
+        bulletSpeed = 12;
         /* 弹道修正, TODO */
         if(bulletSpeed){
             stCamera.correctTrajectory(ptsInGimbal,ptsInShoot,bulletSpeed);
@@ -441,10 +441,10 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         else{
             ptsInShoot = ptsInGimbal;
         }
-        DEBUG("stCamera.correctTrajectory")
+        // DEBUG("stCamera.correctTrajectory")
         /* 计算欧拉角 */
         Camera::convertPts2Euler(ptsInShoot, &rYaw, &rPitch);  //计算Pitch,Yaw传递给电控
-        DEBUG("Camera::convertPts2Euler")
+        // DEBUG("Camera::convertPts2Euler")
     }
 };  // end struct Target
 

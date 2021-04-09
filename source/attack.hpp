@@ -12,9 +12,7 @@
 #include "capture.hpp"
 #include "communicator.hpp"
 #include "imageshow.hpp"
-#define NDEBUG
 #include "sort/sort.h"
-#undef NDEBUG
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-attributes"
@@ -543,16 +541,13 @@ class Attack : AttackBase {
                 /* 5.预测部分（原三维坐标系卡尔曼滤波） */
 
                 /* 6.修正弹道并计算欧拉角 */
-                DEBUG("correctTrajectory_and_calcEuler start")
                 float bulletSpeed;
                 m_communicator.getBulletSpeed(&bulletSpeed);
                 s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed);
-                DEBUG("correctTrajectory_and_calcEuler end")
                 rYaw = s_historyTargets[0].rYaw;
                 rPitch = s_historyTargets[0].rPitch;
 
                 if (m_isEnablePredict) {
-                    cout << "m_isEnablePredict start !" << endl;
                     m_is.addText(cv::format("b4pdct rPitch %4.0f", rPitch));
                     m_is.addText(cv::format("b4pdct rYaw %4.0f", rYaw));
                     if (statusA == SEND_STATUS_AUTO_AIM) { /* 获取世界坐标点 */

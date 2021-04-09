@@ -28,7 +28,7 @@
  */
 #ifndef SORT_SORT_H
 #define SORT_SORT_H
-
+#define NDEBUG
 #include <algorithm>
 #include <map>
 #include <vector>
