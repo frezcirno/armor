@@ -56,7 +56,7 @@ class Communicator {
         uint16_t timeStamp = 0;
         float yaw = 0.0;
         float pitch = 0.0;
-        float speed =0.0;
+        float speed = 0.0;
         uint8_t extra[2] = {0, 0};  // additional imformation
         uint8_t crc8check = 0;
         uint8_t end = 0xf2;
