@@ -6,67 +6,16 @@
 
 #include <cmath>
 #include <opencv2/opencv.hpp>
-#include <toml.h>
-
+#include "debug.h"
+#include "config.hpp"
 #include "semaphore.hpp"
 //#include "capture.hpp"
-
-#define DEBUG_MODE  // 使能 DEBUG 宏
-
-#ifdef DEBUG_MODE
-
-/* 文件名获取 */
-#    define __FILENAME__ (strrchr(__FILE__, '/') + 1)
-
-#    define DEBUG(X) \
-        {            \
-        }
-#else
-#    define DEBUG(content)
-#endif
-
-#define STATE(level, name, content) cout << "--- [" << level << "][" << name << "] " << content << endl;
-#define ERROR "error"
-#define INFOO "infoo"
-#define WARN "warn"
-
-/* 绿色 */
-#define PRINT_INFO(content, ...) printf("\033[32m" content "\033[0m", ##__VA_ARGS__)
-/* 黄色 */
-#define PRINT_WARN(content, ...) printf("\033[33m" content "\033[0m", ##__VA_ARGS__)
-/* 红色 */
-#define PRINT_ERROR(content, ...) printf("\033[31m" content "\033[0m", ##__VA_ARGS__)
 
 const double g = 9.8; 
 const double x = 0,y = 0,pitch = 0;
 namespace armor {
 
-/**
- * 配置文件结构体
- */
-struct Config {
-    toml::Value config;
-    bool attackColor;
-
-    explicit Config() {
-        /* parse config.toml */
-        std::ifstream ifs("../config.toml");
-        toml::ParseResult pr = toml::parse(ifs);
-        ifs.close();
-        if (!pr.valid()) {
-            PRINT_ERROR("[config] config toml error: %s\n", pr.errorReason.c_str());
-            PRINT_ERROR("[config] abort!\n");
-            exit(0);
-        }
-        config = pr.value;
-    }
-
-    template <typename T>
-    inline typename toml::call_traits<T>::return_type get(const std::string &key) const {
-        return config.get<T>(key);
-    }
-
-} stConfig;
+Config stConfig("../config.toml");
 
 /**
  * 采集的图像的参数
