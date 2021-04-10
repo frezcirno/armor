@@ -485,6 +485,9 @@ class Attack : AttackBase {
      * @return true
      */
     bool run(cv::Mat &src, int64_t timeStamp, float gYaw, float gPitch) {
+        m_is.addText(cv::format("gPitch %4f", gPitch));
+        m_is.addText(cv::format("gYaw %4f", gYaw));
+
         /* 1.初始化参数，判断是否启用ROI */
         m_bgr_raw = src;
         m_bgr = src;
@@ -549,13 +552,11 @@ class Attack : AttackBase {
 
                 /* 6.预测部分 */
                 if (m_isEnablePredict) {
-                    m_is.addText(cv::format("b4pdct rPitch %4.0f", rPitch));
-                    m_is.addText(cv::format("b4pdct rYaw %4.0f", rYaw));
+                    m_is.addText(cv::format("b4pdct rPitch %4f", rPitch));
+                    m_is.addText(cv::format("b4pdct rYaw %4f", rYaw));
                     if (statusA == SEND_STATUS_AUTO_AIM) { /* 获取世界坐标点 */
                         m_communicator.getGlobalAngle(&gYaw, &gPitch);
-                        m_is.addText(cv::format("gPitch %4.0f", gPitch));
-                        m_is.addText(cv::format("gYaw %4.0f", gYaw));
-                        /* 卡尔曼滤波初始化/参数修./att正 */
+                        /* 卡尔曼滤波初始化/参数修正 */
                         if (s_historyTargets.size() == 1)
                             kalman.clear_and_init(rPitch, rYaw, timeStamp);
                         else {
@@ -566,8 +567,8 @@ class Attack : AttackBase {
                     if (s_historyTargets.size() > 1) {
                         kalman.predict(0.1, &s_historyTargets[0].predictPitch, &s_historyTargets[0].predictYaw);
                         /* 转换为云台坐标点 */
-                        m_is.addText(cv::format("predictPitch %4.0f", s_historyTargets[0].predictPitch));
-                        m_is.addText(cv::format("predictYaw %4.0f", s_historyTargets[0].predictYaw));
+                        m_is.addText(cv::format("predictPitch %4f", s_historyTargets[0].predictPitch = rPitch));
+                        m_is.addText(cv::format("predictYaw %4f", s_historyTargets[0].predictYaw = rYaw));
                     }
                 }
 
