@@ -139,30 +139,67 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         gPixelPts2d.emplace_back(cv::Point2d(pixelPts2f.tr) + cv::Point2d(stFrameInfo.offset));
         CV_Assert(!stCamera.camMat.empty());
 
-        // 存在两种尺寸装甲板
-        //如果处于小装甲板模式，使用装甲板物理参数smallFig3f；否则使用装甲板物理参数largeFig3f
-        //之后对灯条矩形进行solvePnP,得出对应的旋转向量r,偏移向量t
+        /** 三个坐标系：
+         * 相机坐标系（3D）：
+         *   原点：相机
+         *   z轴：相机朝向
+         *   x轴：相机朝向的右方
+         *   y轴：相机朝向的下方
+         * 世界/模型坐标系（3D）：
+         *   自由定义
+         * 图像平面（图像坐标系）（2D）：
+         *   原点：图像的坐上角点
+         *   x轴：向右
+         *   y轴：向下
+         * 
+         ** solvePnP
+         * solvePnP(世界/模型坐标系坐标[Pworld{0-3}], 图像坐标系坐标[Pimage{0-3}], ...)
+         * 返回：旋转向量rv 和 平移矩阵tv，表示如何从世界坐标系到**相机**坐标系
+         *      即，一个点在世界坐标系下的坐标为(u,v,w)，在相机坐标系下的坐标为(x,y,z)
+         *      则有 [x y z]^T == R * [u v w]^T + t
+         *      其中R为旋转矩阵（3x3），t为平移向量（1x3）
+         **
+         * 此处世界坐标系定义：O - 装甲板tl角点, x - Right, y - Up, z - Forward, 单位：mm
+         * 图像坐标系为OpenCV图像坐标系
+         */
         if (type == TARGET_SMALL)
             cv::solvePnP(stArmorStdFigure.smallFig3f, gPixelPts2d, stCamera.camMat, stCamera.distCoeffs, rv, tv);
         else
             cv::solvePnP(stArmorStdFigure.largeFig3f, gPixelPts2d, stCamera.camMat, stCamera.distCoeffs, rv, tv);
 
-        //罗德里格斯变换，为计算角度做准备
+        /** 旋转矩阵
+         * 用矩阵来表示三维旋转变换：
+         *   三维旋转变换可以看成是矩阵乘法运算，绕任意轴旋转则可以分解成绕三个坐标轴旋转的叠加
+         * Rx = [[1 0 0];[0 cos(a) -sin(a)];[0 sin(a) cos(a)]]
+         * Ry = [[cos(a) 0 sin(a)];[0 1 0];[-sin(a) 0 cos(a)]]
+         * Rz = [[cos(a) -sin(a) 0];[sin(a) cos(a) 0];[0 0 1]]
+         * R = Rx * Ry * Rz
+         * 特点：用9个量描述旋转变换的3个自由度，有冗余
+         *      9个量是有约束的：必须是正交矩阵，且行列式为1
+         *
+         ** 旋转向量
+         * 用一个三维向量来表示三维旋转变换，该向量的方向是旋转轴，其模则是旋转角度
+         * 特点：旋转向量代表的变换关系十分直观
+         *      但运算上要比矩阵形式更加复杂。
+         *
+         ** 相互转换
+         * opencv 中有函数 Rodrigues() 用于旋转矩阵和旋转向量的转换。
+         */
         cv::Rodrigues(rv, rvMat);  //将旋转向量变换成旋转矩阵
 
         /**
-         * TODO: 先将世界坐标系转到相机坐标系，再将相机坐标系变换到云台坐标系(mm) 
-         * 因为需要计算的弹道，所以需要获取云台炮口的坐标
-         * 
-         * 我们以上步骤获得了相机坐标系的一系列参数（原点是摄像机光心）
-         * 从相机坐标到云台坐标其实就是经过了一个物理空间上的位移
-         * 这个位移我们可以实际测量出来，因为实际上因为相机和炮口由于不可抗的物理因素使得两者处于上下放置关系
-         * 所以我们相机坐标原点到云台坐标原点只需要z坐标补偿一个相对距离（mm）
+         * 得到目标点在相机坐标系下的坐标
          */
-        cv::Mat ptsInCamera_Mat = rvMat * stArmorStdFigure.smallShootPosition + tv;  //世界坐标系转到相机坐标系
+        cv::Mat ptsInCamera_Mat = rvMat * (type == TARGET_SMALL ? stArmorStdFigure.smallShootPosition : stArmorStdFigure.largeShootPosition) + tv;
+
+        /** 目标点在（相机坐标系 -> 云台坐标系）坐标转换
+         * 
+         * 云台坐标系：以发射机构为中心的坐标系
+         * 相机坐标系定义见上方
+         */
         ptsInGimbal.x = ptsInCamera_Mat.at<double>(0, 0);
-        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) - 55;
-        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) - 25;  //云台和相机光心的垂直坐标补偿(mm)
+        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) + 55; // 垂直方向
+        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) - 25; // 前后方向
     }
 
     /**

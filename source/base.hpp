@@ -37,8 +37,8 @@ struct Config {
  * 采集的图像的参数
  */
 struct FrameInfo {
-    cv::Size2i size = cv::Size2i(0, 0);
-    cv::Point2i offset = cv::Point2i(0, 0);
+    cv::Size2i size = cv::Size2i(0, 0); // 硬件返回的图像尺寸
+    cv::Point2i offset = cv::Point2i(0, 0); // 硬件ROI的起始点
 } stFrameInfo;
 
 /**
@@ -110,15 +110,27 @@ struct
      * x - Right
      * y - Up
      * z - Forward
+     * 顺序：tl,bl,br,tr
+     *
+     *   _(z)
+     *   /'
+     *  /
+     * 1-----4---> (x)
+     * |  x  |
+     * 2-----3
+     * |
+     * v
+     * (-y)
      */
-    // 仅灯条矩形
+    // 世界坐标系中，大小装甲板的坐标（**仅覆盖灯条的矩形**）
     std::vector<cv::Point3d> smallFig3f = {cv::Point3d(0, 0, 0), cv::Point3d(0, -55, 0), cv::Point3d(135, -55, 0), cv::Point3d(135, 0, 0)};
     std::vector<cv::Point3d> largeFig3f = {cv::Point3d(0, 0, 0), cv::Point3d(0, -55, 0), cv::Point3d(230, -55, 0), cv::Point3d(230, 0, 0)};
     // 扩展区域
     std::vector<cv::Point2f> smallFig_Ex = {cv::Point2f(0, 0), cv::Point2f(0, 126), cv::Point2f(135, 126), cv::Point2f(135, 0)};
     std::vector<cv::Point2f> largeFig_Ex = {cv::Point2f(0, 0), cv::Point2f(0, 126), cv::Point2f(230, 126), cv::Point2f(230, 0)};
-    //
+    // 按照上面世界坐标系中，大小装甲板中心的坐标
     cv::Mat smallShootPosition = cv::Mat(cv::Point3d(67.5, -27.5, 0.0));
+    cv::Mat largeShootPosition = cv::Mat(cv::Point3d(115, -27.5, 0.0));
 } stArmorStdFigure;
 
 /**
