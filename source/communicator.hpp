@@ -54,6 +54,7 @@ class Communicator {
         float yaw = 0.0;
         float pitch = 0.0;
         float speed = 0.0;
+        float distance = 0.0;
         uint8_t extra[2] = {0, 0};  // additional imformation
         uint8_t crc8check = 0;
         uint8_t end = 0xf2;
@@ -120,7 +121,7 @@ class Communicator {
      * @param extra0
      * @param extra1
      */
-    virtual void send(float rYaw, float rPitch, emSendStatusA extra0, emSendStatusB extra1){};
+    virtual void send(float rYaw, float rPitch, float distance, emSendStatusA extra0, emSendStatusB extra1){};
 
     /**
      * 接收线程, 循环读取电控发来的数据
@@ -254,7 +255,7 @@ class CommunicatorSerial : public Communicator {
      * @param extra0 
      * @param extra1 
      */
-    void send(float rYaw, float rPitch, emSendStatusA extra0, emSendStatusB extra1) override {
+    void send(float rYaw, float rPitch, float distance, emSendStatusA extra0, emSendStatusB extra1) override {
         if (m_isDisable.load()) return;
         if (!m_ser.isOpen()) return;
         /* 刷新结构体 */
@@ -262,6 +263,7 @@ class CommunicatorSerial : public Communicator {
         m_frame.timeStamp++;
         m_frame.yaw = rYaw;
         m_frame.pitch = rPitch;
+        m_frame.distance = distance;
         m_frame.extra[0] = extra0;
         m_frame.extra[1] = extra1;
 
@@ -351,12 +353,13 @@ class CommunicatorUSB : public Communicator {
         m_usb = new usbio::spUSB(vid, pid);
     }
 
-    void send(float rYaw, float rPitch, emSendStatusA extra0, emSendStatusB extra1) override {
+    void send(float rYaw, float rPitch, float distance, emSendStatusA extra0, emSendStatusB extra1) override {
         /* 刷新结构体 */
         if (m_frame.timeStamp > 0xfffe) m_frame.timeStamp = 0;
         m_frame.timeStamp++;
         m_frame.yaw = rYaw;
         m_frame.pitch = rPitch;
+        m_frame.distance = distance;
         m_frame.extra[0] = extra0;
         m_frame.extra[1] = extra1;
 

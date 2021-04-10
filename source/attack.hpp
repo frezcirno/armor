@@ -528,7 +528,7 @@ class Attack : AttackBase {
         /* 目标匹配 + 预测 + 修正弹道 + 计算欧拉角 + 射击策略 */
         if (preLock.owns_lock() && timeStamp > s_latestTimeStamp.load()) {
             s_latestTimeStamp.exchange(timeStamp);
-            float rYaw = 0.0, rPitch = 0.0;  // 相对Yaw和Pitch
+            float rYaw = 0.0, rPitch = 0.0, dist = 0.0;  // 相对Yaw和Pitch
 
             /* 获得云台全局欧拉角 */
             m_communicator.getGlobalAngle(&gYaw, &gPitch);
@@ -586,6 +586,9 @@ class Attack : AttackBase {
                     s_historyTargets[0].ptsInWorld.x / 1000.0,
                     s_historyTargets[0].ptsInWorld.y / 1000.0,
                     s_historyTargets[0].ptsInWorld.z / 1000.0));
+
+                auto pts = s_historyTargets[0].ptsInWorld;
+                dist = 0.001 * std::sqrt(pts.x * pts.x + pts.y * pts.y);
             }
             /* 8.通过PID对yaw进行修正（参数未修改） */
             /*
@@ -604,10 +607,11 @@ class Attack : AttackBase {
             // statusA = SEND_STATUS_AUTO_NOT_FOUND;
             m_is.addText(cv::format("rPitch %.3f", rPitch));
             m_is.addText(cv::format("rYaw   %.3f", rYaw));
+            m_is.addText(cv::format("dist   %.3f", dist));
             m_is.addText(cv::format("statusA   %.3x", statusA));
 
             /* 9.发给电控 */
-            m_communicator.send(rYaw, -rPitch, statusA, SEND_STATUS_WM_PLACEHOLDER);
+            m_communicator.send(rYaw, -rPitch, dist, statusA, SEND_STATUS_WM_PLACEHOLDER);
             PRINT_INFO("[attack] send = %ld", timeStamp);
         }
         if (preLock.owns_lock())
