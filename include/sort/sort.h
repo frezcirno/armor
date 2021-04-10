@@ -251,7 +251,7 @@ private:
       auto area{bbox.area()};
       auto ratio{bbox.width / bbox.height};
 
-      cv::Mat z{(cv::Mat_<float>({center_x, center_y, area, ratio}))};
+      cv::Mat z = (cv::Mat_<float>(4, 1) << center_x, center_y, area, ratio);
       return z;
     }
 
