@@ -1,18 +1,22 @@
-#ifndef TJSP_ATTACK_2020_ATTACK_HPP
-#define TJSP_ATTACK_2020_ATTACK_HPP
-
-#include <dirent.h>
-#include <future>
-#include <numeric>
-#include <thread>
-#include <utility>
+#pragma once
 
 #include "ThreadPool.h"
 #include "base.hpp"
-#include "capture.hpp"
+#include "capture/capture.hpp"
 #include "communicator.hpp"
 #include "imageshow.hpp"
+#include "kalman.hpp"
 #include "sort/sort.h"
+#include "target.hpp"
+#include <atomic>
+#include <deque>
+#include <dirent.h>
+#include <future>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <thread>
+#include <utility>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-attributes"
@@ -22,7 +26,6 @@
 #include "tensorflow/core/public/session.h"
 #include "tensorflow/core/util/command_line_flags.h"
 #pragma GCC diagnostic pop
-
 
 // TODO: 把这些静态常量移到配置文件中
 /*模型路径*/
@@ -36,19 +39,18 @@ const unsigned int max_age = 10;
 const unsigned int min_hits = 1;
 const double iou_threshold = 0.1;
 
-namespace armor {
 /**
  * 自瞄基类, 多线程共享变量用
  */
 class AttackBase {
   protected:
-    static std::mutex s_mutex;                         // 互斥锁
-    static std::atomic<int64_t> s_latestTimeStamp;     // 已经发送的帧编号
-    static std::deque<Target> s_historyTargets;        // 打击历史, 最新的在头部, [0, 1, 2, 3, ....]
-    static Kalman kalman;                              // 卡尔曼滤波
-    static std::unique_ptr<tensorflow::Session, void(*)(tensorflow::Session*)> s_session; // 分类器
-    static std::unique_ptr<sort::SORT> s_sortTracker;  // DeepSORT 跟踪
-    static size_t s_trackId;               // DeepSORT 跟踪对象Id
+    static std::mutex s_mutex;                                                               // 互斥锁
+    static std::atomic<int64_t> s_latestTimeStamp;                                           // 已经发送的帧编号
+    static std::deque<Target> s_historyTargets;                                              // 打击历史, 最新的在头部, [0, 1, 2, 3, ....]
+    static Kalman kalman;                                                                    // 卡尔曼滤波
+    static std::unique_ptr<tensorflow::Session, void (*)(tensorflow::Session *)> s_session;  // 分类器
+    static std::unique_ptr<sort::SORT> s_sortTracker;                                        // DeepSORT 跟踪
+    static size_t s_trackId;                                                                 // DeepSORT 跟踪对象Id
 
     /**
      * @param image 图片
@@ -56,10 +58,11 @@ class AttackBase {
      * 将图片从mat转化为tensor
      */
     static void mat2Tensor(const cv::Mat &image, tensorflow::Tensor &t) {
-       float *tensor_data_ptr = t.flat<float>().data();
-       cv::Mat fake_mat(image.rows, image.cols, CV_32FC(image.channels()), tensor_data_ptr);
-       image.convertTo(fake_mat, CV_32FC(image.channels()));
+        float *tensor_data_ptr = t.flat<float>().data();
+        cv::Mat fake_mat(image.rows, image.cols, CV_32FC(image.channels()), tensor_data_ptr);
+        image.convertTo(fake_mat, CV_32FC(image.channels()));
     }
+
   private:
     /**
      * 初始化一个session
@@ -91,7 +94,7 @@ class AttackBase {
         else
             std::cout << "[TensorFlow] Add graph to session successfully" << std::endl;
 
-        return { tf_session, [](Session* tfsession){ tfsession->Close(); } };
+        return {tf_session, [](Session *tfsession) { tfsession->Close(); }};
     }
 };
 /* 类静态成员初始化 */
@@ -102,6 +105,7 @@ Kalman AttackBase::kalman;
 decltype(AttackBase::s_session) AttackBase::s_session = AttackBase::initTFSession();
 decltype(AttackBase::s_sortTracker) AttackBase::s_sortTracker(std::make_unique<sort::SORT>(iou_threshold, max_age, min_hits));
 size_t AttackBase::s_trackId;
+
 /**
  * 自瞄主类
  */
@@ -238,7 +242,7 @@ class Attack : AttackBase {
                 m_preTargets.emplace_back(std::move(target));
             }
         }
-        m_is.addEvent("preTargets", m_preTargets);
+        m_is.addTargets("preTargets", m_preTargets);
     }
     int m_cropNameCounter = 0;  // TODO: magic variable
 
@@ -354,9 +358,9 @@ class Attack : AttackBase {
     }
 
     /**
-     * Get the distance between a sort::Track and a armor::Target
+     * Get the distance between a sort::Track and a Target
      */
-    static float distance(const sort::Track& track, const Target& target) {
+    static float distance(const sort::Track &track, const Target &target) {
         auto dist1 = track.bbox.tl() - target.pixelPts2f.tl;
         auto dist2 = track.bbox.br() - target.pixelPts2f.br;
         return abs(dist1.x) + abs(dist1.y) + abs(dist2.x) + abs(dist2.y);
@@ -381,12 +385,11 @@ class Attack : AttackBase {
 
         /* Tracker 更新 */
         std::vector<sort::BBox> bboxs;
-        for (auto &&tar : m_targets)
-        {
+        for (auto &&tar : m_targets) {
             bboxs.emplace_back(tar.pixelPts2f.toRect());
         }
         std::vector<sort::Track> tracks = s_sortTracker->update(bboxs);
-        
+
         m_is.addTracks(tracks);
         m_is.addText(cv::format("Track Id: %ld", s_trackId));
 
@@ -402,7 +405,7 @@ class Attack : AttackBase {
                 PRINT_INFO("++++++++++++++++ 发现目标: 选择最近的 ++++++++++++++++++++\n");
                 s_historyTargets.emplace_front(*minTarElem);
                 // 找到最近的trackId并记录下来
-                auto minTrackElem = std::min_element(tracks.begin(), tracks.end(), [&](const sort::Track& a, const sort::Track& b) {
+                auto minTrackElem = std::min_element(tracks.begin(), tracks.end(), [&](const sort::Track &a, const sort::Track &b) {
                     return distance(a, *minTarElem) < distance(b, *minTarElem);
                 });
                 s_trackId = (minTrackElem != tracks.end() ? minTrackElem->id : s_trackId);
@@ -413,17 +416,17 @@ class Attack : AttackBase {
         } else {
             /* case B: 之前选过打击目标了, 得找到一样的目标 */
             PRINT_INFO("++++++++++++++++ 开始寻找上一次目标 ++++++++++++++++++++\n");
-            auto trackElem = s_trackId != -1 ? 
-                std::find_if(tracks.begin(), tracks.end(), [&](const sort::Track& track){
-                    return track.id == s_trackId;
-                }) 
-                : tracks.end();
+            auto trackElem = s_trackId != -1 ?
+                                 std::find_if(tracks.begin(), tracks.end(), [&](const sort::Track &track) {
+                                     return track.id == s_trackId;
+                                 }) :
+                                 tracks.end();
 
             if (trackElem != tracks.end()) {
                 PRINT_INFO("++++++++++++++++ 找到上一次目标 ++++++++++++++++++++\n");
                 auto closestTarget = std::min_element(m_targets.begin(), m_targets.end(), [&](const Target &a, const Target &b) {
                     return distance(*trackElem, a) < distance(*trackElem, b);
-                }); // (一定存在)
+                });  // (一定存在)
                 s_historyTargets.emplace_front(*closestTarget);
                 return SEND_STATUS_AUTO_AIM;  //瞄准
             } else {
@@ -516,14 +519,14 @@ class Attack : AttackBase {
         /* 取得发送锁🔒 */
         std::unique_lock<std::mutex> preLock(s_mutex, std::try_to_lock);
         while (!preLock.owns_lock() && timeStamp > s_latestTimeStamp.load()) {
-            armor::thread_sleep_us(5);
+            thread_sleep_us(5);
             preLock.try_lock();
         }
 
         /* 目标匹配 + 预测 + 修正弹道 + 计算欧拉角 + 射击策略 */
         if (preLock.owns_lock() && timeStamp > s_latestTimeStamp.load()) {
             s_latestTimeStamp.exchange(timeStamp);
-            float rYaw = 0.0, rPitch = 0.0; // 相对Yaw和Pitch
+            float rYaw = 0.0, rPitch = 0.0;  // 相对Yaw和Pitch
 
             /* 获得云台全局欧拉角 */
             m_communicator.getGlobalAngle(&gYaw, &gPitch);
@@ -612,5 +615,3 @@ class Attack : AttackBase {
         return true;
     }
 };
-}  // namespace armor
-#endif

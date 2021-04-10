@@ -2,22 +2,20 @@
 // Created by 杨智宇 on 2019-04-27.
 //
 
-#ifndef ATTACK_IMAGESHOW_HPP
-#define ATTACK_IMAGESHOW_HPP
+#pragma once
 
+#include <climits>
+#include <cstdio>
 #include <iostream>
 #include <opencv2/opencv.hpp>
-#include <cstdio>
-#include <climits>
 
 #include "base.hpp"
-#include "sort/sort.h"
 #include "semaphore.hpp"
+#include "sort/sort.h"
+#include "target.hpp"
 
 using std::cout;
 using std::endl;
-
-namespace armor {
 
 /**
  * ImageShow 基类, 静态变量用于线程间同步和共享
@@ -294,14 +292,14 @@ class ImageShowClient : ImageShowBase {
      * @param eventName 事件名, 显示在左上角
      * @param lights 绘制对象
      */
-    void addLights(const cv::String &eventName, const std::vector<armor::Light> &lights, const cv::Point &offset) {
+    void addLights(const cv::String &eventName, const std::vector<Light> &lights, const cv::Point &offset) {
         if (s_mode == 0 || s_mode == 1)
             return;
         cv::Scalar currentColor = m_getCurrentColor();
         int thickness = 1;
         for (const auto &light : lights) {
-            cv::line(m_frame, cv::Point(light.topPt.x + offset.x, light.topPt.y + offset.y), 
-                              cv::Point(light.bottomPt.x + offset.x, light.bottomPt.y + offset.y), currentColor, thickness);
+            cv::line(m_frame, cv::Point(light.topPt.x + offset.x, light.topPt.y + offset.y),
+                cv::Point(light.bottomPt.x + offset.x, light.bottomPt.y + offset.y), currentColor, thickness);
         }
         m_putMarginText(eventName + cv::format(": %d", int(lights.size())), currentColor, thickness);
     }
@@ -311,7 +309,7 @@ class ImageShowClient : ImageShowBase {
      * @param eventName 事件名, 显示在左上角
      * @param lights 绘制对象
      */
-    void addEvent(const cv::String &eventName, const std::vector<armor::Light> &lights, const cv::Point &offset) {
+    void addEvent(const cv::String &eventName, const std::vector<Light> &lights, const cv::Point &offset) {
         addLights(eventName, lights, offset);
     }
 
@@ -320,7 +318,7 @@ class ImageShowClient : ImageShowBase {
      * @param eventName 事件名, 显示在左上角
      * @param targets 绘制对象
      */
-    void addTargets(const cv::String &eventName, const std::vector<armor::Target> &targets) {
+    void addTargets(const cv::String &eventName, const std::vector<Target> &targets) {
         if (s_mode == 0 || s_mode == 1)
             return;
         cv::Scalar currentColor = m_getCurrentColor();
@@ -331,7 +329,6 @@ class ImageShowClient : ImageShowBase {
         }
         m_putMarginText(eventName + cv::format(": %d", int(targets.size())), currentColor, thickness);
     }
-
 
     /**
      * 绘制目标
@@ -355,7 +352,7 @@ class ImageShowClient : ImageShowBase {
      * @param eventName 事件名, 显示在左上角
      * @param targets 绘制对象
      */
-    void addEvent(const cv::String &eventName, const std::vector<armor::Target> &targets) {
+    void addEvent(const cv::String &eventName, const std::vector<Target> &targets) {
         addTargets(eventName, targets);
     }
 
@@ -433,7 +430,7 @@ class ImageShowClient : ImageShowBase {
      * @param eventName 事件名, 显示在左上角
      * @param targets 绘制对象
      */
-    void addClassifiedTargets(const cv::String &eventName, const std::vector<armor::Target> &targets) {
+    void addClassifiedTargets(const cv::String &eventName, const std::vector<Target> &targets) {
         if (s_mode == 0)
             return;
         cv::Scalar currentColor = m_getCurrentColor();
@@ -452,7 +449,7 @@ class ImageShowClient : ImageShowBase {
      * @param eventName 事件名, 显示在左上角
      * @param targets 绘制对象
      */
-    void addFinalTargets(const cv::String &eventName, const armor::Target &target) {
+    void addFinalTargets(const cv::String &eventName, const Target &target) {
         if (s_mode == 0)
             return;
         cv::Scalar currentColor = m_getCurrentColor();
@@ -474,7 +471,7 @@ class ImageShowClient : ImageShowBase {
      * @param eventName 事件名, 显示在左上角
      * @param targets 绘制对象
      */
-    void addPredictTarget(const cv::String &eventName, const armor::Target &target) {
+    void addPredictTarget(const cv::String &eventName, const Target &target) {
         if (s_mode == 0)
             return;
         cv::Scalar currentColor = m_getCurrentColor();
@@ -569,7 +566,7 @@ class ImageShowClient : ImageShowBase {
      */
     void show() {
         while (s_isPause.load() && s_mode != 0)
-            armor::thread_sleep_us(1);
+            thread_sleep_us(1);
         m_clockPrint();
         if (s_mode == 0)
             return;
@@ -800,5 +797,3 @@ class ImageShowServer : ImageShowBase {
         PRINT_INFO("[is Server] quit\n");
     }
 };
-}  // namespace armor
-#endif  // ATTACK_IMAGESHOW_HPP

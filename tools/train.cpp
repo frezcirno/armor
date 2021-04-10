@@ -63,7 +63,7 @@ void getData(const cv::String &mainPath, int trainNumber,
     std::vector<std::pair<int, std::vector<cv::String>>> fileNames;
     getAllFiles(mainPath, fileNames);
 
-    armor::Hog hog;
+    Hog hog;
     std::vector<cv::Mat> trainGradients;
     std::vector<cv::Mat> testGradients;
     for (auto &_samples:fileNames) {

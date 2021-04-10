@@ -68,7 +68,7 @@ namespace wm
         void hit(float &pitch, float &yaw);
         static Windmill *GetInstance(const cv::Mat &cam, const cv::Mat &dist,
                                      const cv::Mat &TvCtoL, const double delay, 
-                                     const cv::String &modelName, armor::ImageShowClient *is,
+                                     const cv::String &modelName, ImageShowClient *is,
                                      const double maxPitchError, const double maxYawError) 
         {
             static Windmill instance(cam, dist, TvCtoL, delay, modelName, is,maxPitchError,maxYawError);
@@ -76,11 +76,11 @@ namespace wm
         };
     private:
     //datas
-        armor::ImageShowClient *is;
+        ImageShowClient *is;
     //fuctions
         explicit Windmill(const cv::Mat &cam, const cv::Mat &dist, 
                           const cv::Mat &TvCtoL, const double delay,
-                          const cv::String& modelName, armor::ImageShowClient *is,
+                          const cv::String& modelName, ImageShowClient *is,
                           const double maxPitchError, const double maxYawError)
                 : camMatrix(cam), distCoeffs(dist), TvCtoL(TvCtoL), delay(delay), is(is), maxPitchError(maxPitchError), maxYawError(maxYawError) {};
 

@@ -182,7 +182,7 @@ int main() {
     float squareSize = 25.0;  // mm
     int flags = 0;
 
-    armor::MindVision capture;
+    MindVision capture;
     capture.init();
     capture.play();
 

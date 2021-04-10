@@ -6,10 +6,10 @@
 
 
 int main() {
-//    armor::CommunicatorUSB communicator;
+//    CommunicatorUSB communicator;
 //    communicator.open(0x0477, 0x5620);
 
-    armor::CommunicatorSerial communicator;
+    CommunicatorSerial communicator;
     communicator.open("/dev/USBsp2");
 
     communicator.enableReceiveGlobalAngle(true);
@@ -17,7 +17,7 @@ int main() {
     communicator.startReceiveService();
 
     while (true) {
-        communicator.send(5, 0, armor::SEND_STATUS_AUTO_AIM, armor::SEND_STATUS_WM_PLACEHOLDER);
+        communicator.send(5, 0, SEND_STATUS_AUTO_AIM, SEND_STATUS_WM_PLACEHOLDER);
     }
 
     communicator.join();

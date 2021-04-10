@@ -2,8 +2,7 @@
 //created by 刘雍熙 on 2020-02-01
 //
 
-#ifndef COMMUNICATE_HPP
-#define COMMUNICATE_HPP
+#pragma once
 
 #include <atomic>
 #include <cmath>
@@ -16,8 +15,6 @@
 #include "usbio/usbio.hpp"
 
 #include "base.hpp"
-
-namespace armor {
 
 //与电控的通信，需要与电控协商确定发的数据（共三个标识符）
 //1:击打状态
@@ -183,12 +180,12 @@ class Communicator {
     * @param bulletSpeed 存放子弹速度
     * @param delay 取第 delay 个值, [0-最新, 1-第二新, ...]
     */
-    void getBulletSpeed(float *bulletSpeed,uint8_t delay = 0) {
-        if(m_isDisable){
-        std::lock_guard<std::mutex> lockGuard(m_mutex);
-        *bulletSpeed = m_bulletSpeed[delay];
-        }else{
-            *bulletSpeed=0.0;
+    void getBulletSpeed(float *bulletSpeed, uint8_t delay = 0) {
+        if (m_isDisable) {
+            std::lock_guard<std::mutex> lockGuard(m_mutex);
+            *bulletSpeed = m_bulletSpeed[delay];
+        } else {
+            *bulletSpeed = 0.0;
         }
     }
 
@@ -241,7 +238,7 @@ class CommunicatorSerial : public Communicator {
                 PRINT_ERROR("[serial] error: %s\n", e.what());
             }
             /* 转移时间片 */
-            armor::thread_sleep_ms(100);
+            thread_sleep_ms(100);
             if (openSerialCounter > 10) break;
         }
         if (m_ser.isOpen())
@@ -289,7 +286,7 @@ class CommunicatorSerial : public Communicator {
         DEBUG("startReceiveService")
         m_receiveThread = std::thread([&]() {
             while (!m_ser.isOpen() && !m_letStop.load()) {
-                armor::thread_sleep_us(200);
+                thread_sleep_us(200);
             }
             std::vector<uint8_t> buffer;
             while (!m_letStop.load()) {
@@ -316,7 +313,7 @@ class CommunicatorSerial : public Communicator {
                                     m_bulletSpeed.emplace_front(frame.speed);
                                     m_gYaws.emplace_front(frame.yaw / M_PI * 180);  // 转化成角度
                                     m_gPitches.emplace_front(frame.pitch / M_PI * 180);
-                                    if(m_bulletSpeed.size() >10) m_bulletSpeed.pop_back();
+                                    if (m_bulletSpeed.size() > 10) m_bulletSpeed.pop_back();
                                     if (m_gYaws.size() > 10) m_gYaws.pop_back();
                                     if (m_gPitches.size() > 10) m_gPitches.pop_back();
                                     printf("receive (yaw, pitch, bulletSpeed) = (%3.2f, %3.2f, %3.2f)\n", frame.yaw, frame.pitch, frame.speed);
@@ -413,12 +410,9 @@ class CommunicatorUSB : public Communicator {
                         memcpy(buffer, &buf[i + m_frameSize], size);
                     }
                     /* 转移时间片 */
-                    armor::thread_sleep_us(5);
+                    thread_sleep_us(5);
                 }
             }
         });
     }
 };
-}  // namespace armor
-
-#endif  //COMMUNICATE_HPP
