@@ -417,7 +417,6 @@ namespace wm
         coodiTrans(cv::Point3f(WIDTH / 2, HEIGHT / 2, 0.0), detectedPt, 
                    hitTarget.RvTtoL, hitTarget.TvTtoL,
                    camMatrix, distCoeffs);
-        DEBUG(outputPt)
 
         //要击打的目标
         hitTarget.vertexs.emplace_back(outputPt.x - 5, outputPt.y + 5);

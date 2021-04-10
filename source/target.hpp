@@ -130,7 +130,6 @@ struct Target {                          // TODO: 结构体太大了，尝试优
      * @change ptsInGimbal 目标在云台坐标系下的坐标
      */
     void calcWorldParams() {
-        DEBUG("solvePnPRansac")
         /* 转化成相对原始图幅大小的像素坐标 */
         std::vector<cv::Point2d> gPixelPts2d;
         gPixelPts2d.reserve(4);  //灯条矩形的四个边角点坐标
@@ -161,11 +160,9 @@ struct Target {                          // TODO: 结构体太大了，尝试优
          * 所以我们相机坐标原点到云台坐标原点只需要z坐标补偿一个相对距离（mm）
          */
         cv::Mat ptsInCamera_Mat = rvMat * stArmorStdFigure.smallShootPosition + tv;  //世界坐标系转到相机坐标系
-        DEBUG("ptsInCamera_Mat")
         ptsInGimbal.x = ptsInCamera_Mat.at<double>(0, 0);
         ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) - 55;
         ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) - 25;  //云台和相机光心的垂直坐标补偿(mm)
-        DEBUG("calcWorldParams end")
     }
 
     /**
@@ -196,8 +193,6 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         ptsInWorld.x = ptsInWorldMat.at<double>(0);
         ptsInWorld.y = ptsInWorldMat.at<double>(1);
         ptsInWorld.z = ptsInWorldMat.at<double>(2);
-
-        DEBUG("convert2WorldPts end")
     }
 
     /**
@@ -226,15 +221,12 @@ struct Target {                          // TODO: 结构体太大了，尝试优
     /**
      */
     void correctTrajectory_and_calcEuler(float bulletSpeed) {
-        /* 弹道修正, TODO */
-        if (bulletSpeed) {
-            stCamera.correctTrajectory(ptsInGimbal, ptsInShoot, bulletSpeed);
-        } else {
-            ptsInShoot = ptsInGimbal;
+        if (!bulletSpeed) {
+            bulletSpeed = 12;
         }
-        DEBUG("stCamera.correctTrajectory")
+        /* 弹道修正, TODO */
+        stCamera.correctTrajectory(ptsInGimbal, ptsInShoot, bulletSpeed);
         /* 计算欧拉角 */
         Camera::convertPts2Euler(ptsInShoot, &rYaw, &rPitch);  //计算Pitch,Yaw传递给电控
-        DEBUG("Camera::convertPts2Euler")
     }
 };  // end struct Target

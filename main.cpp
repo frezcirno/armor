@@ -207,69 +207,10 @@ int main() {
     for (auto &_t : attackThreads)
         _t.join();
 
-//    /////
-//    int64 timeStamp = 0;
-//    cv::Mat frame;
-//    std::cout << "Using OpenCV " << CV_VERSION << std::endl;
-//
-//    cap->initFrameMat(frame);
-//    float gYaw = 0.0;
-//    float gPitch = 0.0;
-//
-//    ImageShowClient isClient = isServer.getClient(0);
-//    std::cout << "Using OpenCV " << CV_VERSION << std::endl;
-//
-//    while ((cap->isOpened()) && !isServer.isWillExit())
-//    {
-//        if (cap->wait_and_get(frame, timeStamp, [&communicator, &gYaw, &gPitch]() {}))
-//        {
-//            /* 刷新主线程窗口图像 */
-//            isClient.update(frame, int(timeStamp / 1000));
-//            isClient.addText(cv::format("ts %lld", timeStamp));
-//            isClient.addText(cv::format("1/fps %2.2f ms", cap->getCurrentInterval() / 1000.0));
-//            isClient.addText(cv::format("send %2.2f ms", communicator.getCurrentInterval() / 1000.0));
-//
-//            isClient.clock("run");
-//
-//            auto mode = communicator.getWorkMode();
-//            // auto mode =  RM_WINDMILL_CLOCK;
-//            isClient.addText(cv::format("mode: %x", int(mode)));
-//            isClient.addImg("zz", frame);
-//            // cv::imshow("vgsh",frame);
-//            // if(cv::waitKey(1)=='q') break;
-//
-//            isClient.show();
-//
-//            static std::chrono::high_resolution_clock::time_point beg, end;
-//            static double now_max = 0;
-//            end = std::chrono::high_resolution_clock::now();
-//            auto cost = std::chrono::duration<double, std::milli>((end - beg)).count();
-//            beg = std::chrono::high_resolution_clock::now();
-//            if (cost < 10000)
-//                now_max = std::max(now_max, cost);
-//            std::cout << "@@@@@@@@@@@@@@@ " << cost << " ms\n";
-//            std::cout << "@@@@@@@@@@@@@@@ NOW MAX -> " << now_max << " ms\n";
-//            isClient.clock("run");
-//        }
-//        else
-//        {
-//            PRINT_ERROR("capture wait_and_get() failed once\n");
-//        }
-//
-//        while (isServer.isPause())
-//        {
-//            thread_sleep_us(5);
-//        }
-//    }
-//
-//    // 图像显示主循环
-//    isServer.mainloop();
-///////
 #ifndef USE_USB
     communicator.letStop();
     communicator.join();
 #endif
 
-    std::cout << "Attack End" << std::endl;
     return 0;
 }

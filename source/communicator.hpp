@@ -283,7 +283,6 @@ class CommunicatorSerial : public Communicator {
 
     void startReceiveService() override {
         if (m_isDisable.load()) return;
-        DEBUG("startReceiveService")
         m_receiveThread = std::thread([&]() {
             while (!m_ser.isOpen() && !m_letStop.load()) {
                 thread_sleep_us(200);

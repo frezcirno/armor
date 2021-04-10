@@ -354,7 +354,6 @@ class Attack : AttackBase {
         }
         m_is.addClassifiedTargets("After Classify", m_targets);
         std::cout << "Targets: " << m_targets.size() << std::endl;
-        DEBUG("m_classify end")
     }
 
     /**

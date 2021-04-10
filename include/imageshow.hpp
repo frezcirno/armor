@@ -763,9 +763,7 @@ class ImageShowServer : ImageShowBase {
                             &s_frameVec[s_currentCallID].second);
                     }
                     /* 显示主图 */
-                    DEBUG("show main")
                     cv::imshow("main", s_frameVec[id].second);
-                    DEBUG("show img")
                     for (auto &_img : s_imgVec[id]) {
                         if (_img.isUpdated) {
                             _img.isUpdated = false;
@@ -780,7 +778,6 @@ class ImageShowServer : ImageShowBase {
                             cv::imshow(_img.name, _img.mat);
                         }
                     }
-                    DEBUG("show end")
                 })) {
                 PRINT_ERROR("[isServer] mainloop timeout\n");
                 break;

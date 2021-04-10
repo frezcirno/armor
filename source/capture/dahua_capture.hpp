@@ -99,7 +99,7 @@ class DaHuaVision : public Capture {
         double dFrameRate = 0;
         // setAcquisitionFrameRate(cameraSptr, 20);
         getAcquisitionFrameRate(cameraSptr, dFrameRate);
-        std::cout << "getAcquisitionFrameRate: " << dFrameRate << std::endl;
+        // std::cout << "getAcquisitionFrameRate: " << dFrameRate << std::endl;
 
         // userSetSave(cameraSptr);
         // loadUserSet(cameraSptr);
