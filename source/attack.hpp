@@ -234,7 +234,7 @@ class Attack : AttackBase {
                 /* 计算像素坐标 */
                 target.setPixelPts(lights[i].topPt, lights[i].bottomPt, lights[j].bottomPt, lights[j].topPt,
                     m_startPt);
-                if (cv::norm(AC2BC) / minLength > 4.9)
+                if (cv::norm(AC2BC) / minLength > 2.5)
                     target.type = TARGET_LARGE;  // 大装甲
                 /* 获得扩展区域像素坐标, 若无法扩展则放弃该目标 */
                 if (!target.convert2ExternalPts2f())
