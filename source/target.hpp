@@ -17,22 +17,23 @@ struct Quadrilateral {
     }
 };
 
+DDSolver dd = DDSolver();  //DDSolver::get_k1(bulletSpeed,pitch,x,y)
+
 /**
  */
 struct Target {                          // TODO: 结构体太大了，尝试优化不必要的变量
-    Quadrilateral<float> pixelPts2f;     // 硬件ROI图幅下的像素坐标（即m_bgr_raw中的坐标） TODO: 改成cv::Rect<float>类型
+    Quadrilateral<float> pixelPts2f;     // 硬件ROI图幅下的像素坐标（即m_bgr_raw中的坐标）
     cv::Point2f pixelCenterPt2f;         // 像素坐标中心
     Quadrilateral<float> pixelPts2f_Ex;  // 扩展像素坐标
-    cv::Point3d ptsInGimbal;             // 物体在云台坐标系下坐标(相机坐标系经过固定变换后得到)
-    cv::Point3d ptsInWorld;              // 物体在世界坐标系下坐标
+    cv::Point3d ptsInGimbal;             // 物体在云台坐标系下坐标(相机坐标系经过固定变换后得到)，单位：mm
+    cv::Point3d ptsInWorld;              // 物体在世界坐标系下坐标，见convert2WorldPts函数说明，单位：mm
     cv::Point3d ptsInWorld_Predict;      // 物体在预测后的世界坐标系下坐标, 不开启预测的时候和 ptsInWorld 一样
     cv::Point3d ptsInGimbal_Predict;     // 物体在预测后的云台坐标系下坐标, 不开启预测的时候和 ptsInGimbal 一样
-    cv::Point3d ptsInShoot;              // 物体在经过弹道修正后的云台坐标系下坐标
     float predictPitch;                  // 新卡尔曼滤波
     float predictYaw;                    // 新卡尔曼滤波
-    float rPitch;                        // 相对Pitch值, 发给电控
-    float rYaw;                          // 相对Yaw值, 发给电控
-    float bulletSpeed;                   // 子弹速度
+    float rPitch;                        // 相对Pitch值, 发给电控，单位：度
+    float rYaw;                          // 相对Yaw值, 发给电控，单位：度
+    float bulletSpeed;                   // 子弹速度，单位：m/s
     int rTick;                           // 相对帧编号
     emTargetType type;                   // TARGET_SMALL, TARGET_TARGET
 
@@ -55,7 +56,6 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         this->ptsInWorld = t.ptsInWorld;
         this->ptsInWorld_Predict = t.ptsInWorld_Predict;
         this->ptsInGimbal_Predict = t.ptsInGimbal_Predict;
-        this->ptsInShoot = t.ptsInShoot;
         this->rPitch = t.rPitch;
         this->rYaw = t.rYaw;
         this->rTick = t.rTick;
@@ -82,7 +82,6 @@ struct Target {                          // TODO: 结构体太大了，尝试优
                          ptsInWorld(std::move(t.ptsInWorld)),
                          ptsInWorld_Predict(std::move(t.ptsInWorld_Predict)),
                          ptsInGimbal_Predict(std::move(t.ptsInGimbal_Predict)),
-                         ptsInShoot(std::move(t.ptsInShoot)),
                          rv(std::move(t.rv)), tv(std::move(t.tv)), rvMat(std::move(t.rvMat)),
                          m_rotY(std::move(t.m_rotY)), m_rotX(std::move(t.m_rotX)), vInGimbal3d(std::move(t.vInGimbal3d)) {}
 
@@ -198,19 +197,27 @@ struct Target {                          // TODO: 结构体太大了，尝试优
          * 相机坐标系定义见上方
          */
         ptsInGimbal.x = ptsInCamera_Mat.at<double>(0, 0);
-        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) + 55; // 垂直方向
-        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) - 25; // 前后方向
+        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) + 55;  // 垂直方向
+        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) - 25;  // 前后方向
     }
 
     /**
-     * 欧拉角转世界坐标点
-     * @param gYaw_
-     * @param gPitch_
+     * 根据云台实际欧拉角和目标点在云台坐标系的坐标，计算在世界坐标系中的坐标
+     * 注：此处的世界坐标系与前面的不同
+     * 
+     ** 此处坐标系（ptsInWorld）
+     * 原点：云台中心
+     * z轴：**水平**向前
+     * x轴：**水平**向右
+     * y轴：**垂直**向下
+     * 
+     * @param gYaw_ 单位：度
+     * @param gPitch_ 单位：度
      * @change m_rotY, m_rotX
      * @change ptsInWorld 世界坐标
      */
     void convert2WorldPts(float gYaw_, float gPitch_) {
-        //单位转换，弧度转度
+        //单位转换，度转弧度
         gYaw_ = gYaw_ * M_PI / (180.0);
         gPitch_ = gPitch_ * M_PI / (180.0);
 
@@ -225,8 +232,8 @@ struct Target {                          // TODO: 结构体太大了，尝试优
             0, std::sin(gPitch_), std::cos(gPitch_));
 
         /* 先绕动系y轴旋转, 再绕动系x轴旋转 */
-        cv::Mat _pts = (cv::Mat_<double>(3, 1) << ptsInGimbal.x, ptsInGimbal.y, ptsInGimbal.z);
-        cv::Mat ptsInWorldMat = m_rotY * m_rotX * _pts;
+        cv::Mat _pts = cv::Mat(cv::Point3d(ptsInGimbal));
+        cv::Mat ptsInWorldMat = m_rotX * (m_rotY * _pts);
         ptsInWorld.x = ptsInWorldMat.at<double>(0);
         ptsInWorld.y = ptsInWorldMat.at<double>(1);
         ptsInWorld.z = ptsInWorldMat.at<double>(2);
@@ -256,14 +263,27 @@ struct Target {                          // TODO: 结构体太大了，尝试优
     }
 
     /**
+     * 进行弹道修正
+     * @param bulletSpeed 弹速，单位m/s
+     * @use ptsInGimbal, ptsInWorld
+     * @change rYaw 最终需要移动的角度，单位：度
+     * @change rPitch 最终需要移动的角度，单位：度
      */
-    void correctTrajectory_and_calcEuler(float bulletSpeed) {
+    void correctTrajectory_and_calcEuler(float bulletSpeed, float gPitch) {
         if (!bulletSpeed) {
             bulletSpeed = 12;
         }
-        /* 弹道修正, TODO */
-        stCamera.correctTrajectory(ptsInGimbal, ptsInShoot, bulletSpeed);
-        /* 计算欧拉角 */
-        Camera::convertPts2Euler(ptsInShoot, &rYaw, &rPitch);  //计算Pitch,Yaw传递给电控
+
+        double vdistance = 0.001 * cv::sqrt(ptsInWorld.x * ptsInWorld.x + ptsInWorld.z * ptsInWorld.z);  // 水平方向距离，单位m
+        double hdistance = 0.001 * -ptsInWorld.y; // 竖直方向距离，向上为正，单位m
+
+        float pitch = dd.pitchNaive(bulletSpeed, vdistance, hdistance);
+        pitch = pitch * 180 / M_PI;
+
+        float yaw = cv::fastAtan2(ptsInGimbal.x, cv::sqrt(ptsInGimbal.y * ptsInGimbal.y + ptsInGimbal.z * ptsInGimbal.z));
+        yaw = yaw > 180 ? yaw - 360 : yaw;
+
+        rYaw = yaw;
+        rPitch = pitch - gPitch;
     }
 };  // end struct Target

@@ -540,15 +540,14 @@ class Attack : AttackBase {
 
             if (!s_historyTargets.empty()) {
                 m_is.addFinalTargets("final", s_historyTargets[0]);
-                /* 5.预测部分（原三维坐标系卡尔曼滤波） */
-
-                /* 6.修正弹道并计算欧拉角 */
+                /* 5.修正弹道并计算欧拉角 */
                 float bulletSpeed;
                 m_communicator.getBulletSpeed(&bulletSpeed);
-                s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed);
+                s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed, gPitch);
                 rYaw = s_historyTargets[0].rYaw;
                 rPitch = s_historyTargets[0].rPitch;
 
+                /* 6.预测部分 */
                 if (m_isEnablePredict) {
                     m_is.addText(cv::format("b4pdct rPitch %4.0f", rPitch));
                     m_is.addText(cv::format("b4pdct rYaw %4.0f", rYaw));
@@ -558,10 +557,8 @@ class Attack : AttackBase {
                         m_is.addText(cv::format("gYaw %4.0f", gYaw));
                         /* 卡尔曼滤波初始化/参数修./att正 */
                         if (s_historyTargets.size() == 1)
-                            //*kalman.clear_and_init(s_historyTargets[0].ptsInWorld, timeStamp);
                             kalman.clear_and_init(rPitch, rYaw, timeStamp);
                         else {
-                            //*kalman.correct(s_historyTargets[0].ptsInWorld, timeStamp);
                             kalman.correct(&rPitch, &rYaw, timeStamp);
                         }
                     }
@@ -574,17 +571,20 @@ class Attack : AttackBase {
                     }
                 }
 
-                /* 7.射击策略 */
-                if (s_historyTargets.size() >= 3 &&
-                    cv::abs(s_historyTargets[0].ptsInShoot.x) < 70.0 &&
-                    cv::abs(s_historyTargets[0].ptsInShoot.y) < 60.0 &&
-                    cv::abs(s_historyTargets[1].ptsInShoot.x) < 120.0 && cv::abs(s_historyTargets[1].ptsInShoot.y) < 90.0)
+                /** 7.射击策略
+                 * 目标被识别3帧以上才打
+                 */
+                if (s_historyTargets.size() >= 3)
                     statusA = SEND_STATUS_AUTO_SHOOT;  //射击
 
                 m_is.addText(cv::format("ptsInGimbal: %2.3f %2.3f %2.3f",
                     s_historyTargets[0].ptsInGimbal.x / 1000.0,
                     s_historyTargets[0].ptsInGimbal.y / 1000.0,
                     s_historyTargets[0].ptsInGimbal.z / 1000.0));
+                m_is.addText(cv::format("ptsInWorld: %2.3f %2.3f %2.3f",
+                    s_historyTargets[0].ptsInWorld.x / 1000.0,
+                    s_historyTargets[0].ptsInWorld.y / 1000.0,
+                    s_historyTargets[0].ptsInWorld.z / 1000.0));
             }
             /* 8.通过PID对yaw进行修正（参数未修改） */
             /*

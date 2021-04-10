@@ -47,7 +47,6 @@ struct FrameInfo {
 struct Camera {
     cv::Mat camMat;
     cv::Mat distCoeffs;
-    DDSolver dd = DDSolver(0.5 / 0.0034);  //DDSolver::get_k1(bulletSpeed,pitch,x,y)
 
     /**
      * @param path 相机参数文件路径
@@ -59,44 +58,6 @@ struct Camera {
         cv::read(fs["camera_matrix"], camMat);
         cv::read(fs["distortion_coefficients"], distCoeffs);
         fs.release();
-    }
-
-    /**
-     * @param pts 三维坐标
-     * @param pYaw
-     * @param pPitch
-     * 三维坐标转欧拉角工具函数
-     */
-    static void convertPts2Euler(cv::Point3d &pts, float *pYaw, float *pPitch) {
-        float _pitch = cv::fastAtan2(pts.y, cv::sqrt(pts.x * pts.x + pts.z * pts.z));
-        float _yaw = cv::fastAtan2(pts.x, cv::sqrt(pts.y * pts.y + pts.z * pts.z));
-        _pitch = _pitch > 180 ? _pitch - 360 : _pitch;
-        *pPitch = -_pitch;
-        *pYaw = _yaw > 180 ? _yaw - 360 : _yaw;
-    }
-    /**
-    * @param newpts 新的三维坐标
-    * @param pitch 新的pitch
-    * @param pts 原三维坐标
-    * 三维坐标修改pitch分量工具函数
-    */
-    static void convertEuler2Pts(cv::Point3d &newpts, float pitch, cv::Point3d &pts) {
-        float _pitch = -pitch;
-        _pitch = _pitch > 0 ? _pitch : 360 + _pitch;
-        newpts.x = pts.x;
-        newpts.z = pts.z;
-        newpts.y = tan(_pitch / 180 * CV_PI) * cv::sqrt(newpts.x * newpts.x + newpts.z * newpts.z);
-    }
-
-    /**
-     * @param pts 原始坐标值
-     * @param newPts 修正后坐标值
-     * 考虑到重力对子弹的影响，对云台所需仰角进行补偿
-     */
-    void correctTrajectory(cv::Point3d &pts, cv::Point3d &newPts, float bulletSpeed) {
-        // double newpitch = dd.pitchAdvance(bulletSpeed, cv::sqrt(pts.x * pts.x + pts.z * pts.z) * 0.001, -pts.y*0.001);
-        double newpitch = dd.pitchNaive(bulletSpeed, cv::sqrt(pts.x * pts.x + pts.z * pts.z) * 0.001, -pts.y * 0.001);
-        convertEuler2Pts(newPts, newpitch / M_PI * 180, pts);
     }
 } stCamera("../data/camera6mm.xml");
 

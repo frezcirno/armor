@@ -160,8 +160,8 @@ class Communicator {
 
     /**
      * 获得最新的云台全局欧拉角
-     * @param gYaw 存放云台 yaw 角
-     * @param gPitch 存放云台 pitch 角
+     * @param gYaw 存放云台 yaw 角，单位：度
+     * @param gPitch 存放云台 pitch 角，单位：度
      * @param delay 取第 delay 个值, [0-最新, 1-第二新, ...]
      */
     void getGlobalAngle(float *gYaw, float *gPitch, uint8_t delay = 0) {

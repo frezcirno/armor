@@ -16,9 +16,10 @@ class DDSolver {
 
     /**
      * 只考虑重力的弹道模型，根据以下三个值得出pitch角
-     * @param bulletSpeed 弹速，单位m/s
-     * @param x 目标离自己的水平距离，单位m
-     * @param y 目标离自己的垂直距离，正值表示比自己高，负值反之，单位m
+     * @param bulletSpeed 弹速，单位：m/s
+     * @param x 目标离自己的水平距离，单位：m
+     * @param y 目标离自己的垂直距离，正值表示比自己高，负值反之，单位：m
+     * @retval 击打仰角，单位：rad
      */
     double pitchNaive(double bulletSpeed, double x, double y) {
         double iterY = y, pitch_;
@@ -40,9 +41,10 @@ class DDSolver {
 
     /**
      * 考虑水平空气阻力（和重力）的弹道模型，根据以下三个值得出pitch角
-     * @param bulletSpeed 弹速，单位m/s
-     * @param x 目标离自己的水平距离，单位m
-     * @param y 目标离自己的垂直距离，正值表示比自己高，负值反之，单位m
+     * @param bulletSpeed 弹速，单位：m/s
+     * @param x 目标离自己的水平距离，单位：m
+     * @param y 目标离自己的垂直距离，正值表示比自己高，负值反之，单位：m
+     * @retval 击打仰角，单位：rad
      */
     double pitchAdvance(double bulletSpeed, double x, double y) {
         double iterY = y, pitch_;
