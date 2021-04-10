@@ -587,8 +587,8 @@ class Attack : AttackBase {
                     s_historyTargets[0].ptsInWorld.y / 1000.0,
                     s_historyTargets[0].ptsInWorld.z / 1000.0));
 
-                auto pts = s_historyTargets[0].ptsInWorld;
-                dist = 0.001 * std::sqrt(pts.x * pts.x + pts.y * pts.y);
+                auto pts = s_historyTargets[0].ptsInGimbal;
+                dist = 0.001 * std::sqrt(pts.x * pts.x + pts.y * pts.y + pts.z * pts.z);
             }
             /* 8.通过PID对yaw进行修正（参数未修改） */
             /*
