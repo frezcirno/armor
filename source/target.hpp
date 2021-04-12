@@ -197,7 +197,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
          * 相机坐标系定义见上方
          */
         ptsInGimbal.x = ptsInCamera_Mat.at<double>(0, 0);
-        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) + 55;  // 垂直方向
+        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) - 55;  // 垂直方向
         ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) - 25;  // 前后方向
     }
 
@@ -269,7 +269,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
      * @change rYaw 最终需要移动的角度，单位：度
      * @change rPitch 最终需要移动的角度，单位：度
      */
-    void correctTrajectory_and_calcEuler(float bulletSpeed, float gPitch) {
+    void correctTrajectory_and_calcEuler(float bulletSpeed, float gPitch, float* finalPitch) {
         if (!bulletSpeed) {
             bulletSpeed = 12;
         }
@@ -278,13 +278,13 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         double vdistance = 0.001 * cv::sqrt(ptsInWorld.x * ptsInWorld.x + ptsInWorld.z * ptsInWorld.z);  // 水平方向距离，单位m
         double hdistance = 0.001 * -ptsInWorld.y; // 竖直方向距离，向上为正，单位m
 
-        float pitch = dd.pitchNaive(bulletSpeed, vdistance, hdistance);
-        pitch = pitch * 180 / M_PI;
+        *finalPitch = dd.pitchAdvance(bulletSpeed, vdistance, hdistance);
+        *finalPitch = (*finalPitch) * 180 / M_PI;
 
         float yaw = cv::fastAtan2(ptsInGimbal.x, cv::sqrt(ptsInGimbal.y * ptsInGimbal.y + ptsInGimbal.z * ptsInGimbal.z));
         yaw = yaw > 180 ? yaw - 360 : yaw;
 
         rYaw = yaw;
-        rPitch = pitch - gPitch;
+        rPitch = (*finalPitch) - gPitch;
     }
 };  // end struct Target

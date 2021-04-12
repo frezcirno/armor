@@ -320,7 +320,7 @@ class CommunicatorSerial : public Communicator {
                                 }
                                 /* 更新值 end */
                             } else {
-                                PRINT_ERROR("check package failed\n");
+                                // PRINT_ERROR("check package failed\n");
                             }
                         }
                         buffer.erase(buffer.begin(), buffer.begin() + i + m_frameSize - 1);

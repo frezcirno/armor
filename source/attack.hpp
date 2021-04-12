@@ -545,8 +545,10 @@ class Attack : AttackBase {
                 m_is.addFinalTargets("final", s_historyTargets[0]);
                 /* 5.修正弹道并计算欧拉角 */
                 float bulletSpeed;
+                float finalPitch = 0;
                 m_communicator.getBulletSpeed(&bulletSpeed);
-                s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed, gPitch);
+                s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed, gPitch, &finalPitch);
+                m_is.addText(cv::format("finalPitch %4f", finalPitch));
                 rYaw = s_historyTargets[0].rYaw;
                 rPitch = s_historyTargets[0].rPitch;
 
