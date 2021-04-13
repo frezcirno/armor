@@ -1,5 +1,7 @@
 #pragma once
 #include <cmath>
+#include <iostream>
+#include "debug.h"
 
 constexpr double x = 0, y = 0, pitch = 0;
 constexpr double g = 9.8;
@@ -9,10 +11,10 @@ constexpr double g = 9.8;
  */
 class DDSolver {
   private:
-    double k1 = 0.1;  // 和空气阻力有关的系数，等于(k0 / m)，pitchAdvance中用
+    double k1;  // 和空气阻力有关的系数，等于(k0 / m)，pitchAdvance中用
 
   public:
-    DDSolver(double k1 = 0.1) : k1(k1) {}
+    DDSolver(double k1 = 0.9) : k1(k1) {}
 
     /**
      * 只考虑重力的弹道模型，根据以下三个值得出pitch角
@@ -58,8 +60,7 @@ class DDSolver {
             double y_ = vy_ * t_ - 0.5 * g * t_ * t_;
             diff = y - y_;
             iterY += diff;
-            // cout << pitch_ * 180 / M_PI << " " << iterY << " " << diff <<
-            // endl;
+            PRINT_INFO("%d %2f %d %d\n", y, pitch_ * 180 / M_PI, iterY, diff);
         } while (abs(diff) >= 0.001 && ++t < 30);  // 误差小于1mm
         return pitch_;
     }

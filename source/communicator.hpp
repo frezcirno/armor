@@ -299,10 +299,11 @@ class CommunicatorSerial : public Communicator {
                     while (buffer.size() >= m_frameSize) {
                         size_t i = 0;
                         for (i = 0; i < buffer.size() - m_frameSize + 1; ++i) {
-                            if (m_checkFrame(buffer.data()+i)) {
+                            const unsigned char* start = buffer.data() + i;
+                            if (m_checkFrame(start)) {
                                 /* 更新值 begin */
                                 struct __FrameSt frame;
-                                memcpy(&frame, buffer.data(), m_frameSize);
+                                memcpy(&frame, start, m_frameSize);
 
                                 /* 更新成员变量 */
                                 m_WorkMode.exchange(frame.extra[0]);
@@ -319,7 +320,7 @@ class CommunicatorSerial : public Communicator {
                                 }
                                 /* 更新值 end */
                             } else {
-                                PRINT_ERROR("check package failed\n");
+                                // PRINT_ERROR("check package failed\n");
                             }
                         }
                         buffer.erase(buffer.begin(), buffer.begin() + i + m_frameSize - 1);
