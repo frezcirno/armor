@@ -222,9 +222,18 @@ class Attack : AttackBase {
         for (size_t i = 0; i < lights.size(); ++i) {
             for (size_t j = i + 1; j < lights.size(); ++j) {
                 cv::Point2f AC2BC = lights[j].centerPt - lights[i].centerPt;
+                /*对两个灯条的错位度进行筛选*/
+                float angle = (ligts[i].angle + lights[j].angle) / 2.0 / 180.0 * 3.14159265459;
+                if (abs(ligts[i].angle - ligts[j].angle) > 90) {
+                    angle += 3.14159265459 / 2;
+                }
+                cv::Vector2f orientation(cos(angle), sin(angle));
+                cv::Vector2f p2p(AC2BC.x,AC2BC.y);
+                if(abs(orientation.dot(p2p)) >= 25)
+                    continue
                 double minLength = cv::min(lights[i].length, lights[j].length);
                 double deltaAngle = cv::abs(lights[i].angle - lights[j].angle);
-                /* 对灯条组的长度，角度差，中心点tan值，x位置等进行筛选 */
+                /* 对灯条组的长度，角度差，中心点tan值，x位置等进行筛选， */
                 if ((deltaAngle > 23.0 && minLength < 20) || (deltaAngle > 11.0 && minLength >= 20) ||
                     cv::abs(lights[i].length - lights[j].length) / minLength > 0.5 ||
                     cv::fastAtan2(cv::abs(AC2BC.y), cv::abs(AC2BC.x)) > 25.0 ||
@@ -234,7 +243,7 @@ class Attack : AttackBase {
                 /* 计算像素坐标 */
                 target.setPixelPts(lights[i].topPt, lights[i].bottomPt, lights[j].bottomPt, lights[j].topPt,
                     m_startPt);
-                if (cv::norm(AC2BC) / minLength > 4.9)
+                if (cv::norm(AC2BC) / minLength > 2.5)
                     target.type = TARGET_LARGE;  // 大装甲
                 /* 获得扩展区域像素坐标, 若无法扩展则放弃该目标 */
                 if (!target.convert2ExternalPts2f())

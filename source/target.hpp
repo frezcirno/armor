@@ -278,13 +278,14 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         double vdistance = 0.001 * cv::sqrt(ptsInWorld.x * ptsInWorld.x + ptsInWorld.z * ptsInWorld.z);  // 水平方向距离，单位m
         double hdistance = 0.001 * -ptsInWorld.y; // 竖直方向距离，向上为正，单位m
 
-        *finalPitch = dd.pitchAdvance(bulletSpeed, vdistance, hdistance);
-        *finalPitch = (*finalPitch) * 180 / M_PI;
-
         float yaw = cv::fastAtan2(ptsInGimbal.x, cv::sqrt(ptsInGimbal.y * ptsInGimbal.y + ptsInGimbal.z * ptsInGimbal.z));
         yaw = yaw > 180 ? yaw - 360 : yaw;
-
         rYaw = yaw;
+        if(!dd.pitchAdvance(bulletSpeed, vdistance, hdistance,*finalPitch)){
+            rPitch = 0;
+            return;
+        }
+        *finalPitch = (*finalPitch) * 180 / M_PI;
         rPitch = (*finalPitch) - gPitch;
     }
 };  // end struct Target
