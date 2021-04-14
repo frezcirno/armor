@@ -136,6 +136,16 @@ class Attack : AttackBase {
     void setMode(bool colorMode) { mode = colorMode; }
 
   private:
+    static bool shareEdge(const Target &t1, const Target &t2) {
+        if (t1.pixelPts2f.tr == t2.pixelPts2f.tl && t1.pixelPts2f.br == t2.pixelPts2f.bl) {
+            return true;
+        }
+        if (t2.pixelPts2f.tr == t1.pixelPts2f.tl && t2.pixelPts2f.br == t1.pixelPts2f.bl) {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * 通过hsv筛选和进行预处理获得装甲板
      * @change m_preTargets 预检测得到的装甲板列表, 可能有两个装甲板共享一个灯条的情况发生
@@ -223,28 +233,56 @@ class Attack : AttackBase {
             for (size_t j = i + 1; j < lights.size(); ++j) {
                 cv::Point2f AC2BC = lights[j].centerPt - lights[i].centerPt;
                 /*对两个灯条的错位度进行筛选*/
-                float angle = (lights[i].angle + lights[j].angle) / 2.0 / 180.0 * 3.14159265459;
+                float angleSum = (lights[i].angle + lights[j].angle) / 2.0 / 180.0 * M_PI;  // in rad
                 if (abs(lights[i].angle - lights[j].angle) > 90) {
-                    angle += 3.14159265459 / 2;
+                    angleSum += M_PI / 2;
                 }
-                cv::Vec2f orientation(cos(angle), sin(angle));
-                cv::Vec2f p2p(AC2BC.x,AC2BC.y);
-                if(abs(orientation.dot(p2p)) >= 25)
+                cv::Vec2f orientation(cos(angleSum), sin(angleSum));
+                cv::Vec2f p2p(AC2BC.x, AC2BC.y);
+                if (abs(orientation.dot(p2p)) >= 25) {
                     continue;
+                }
                 double minLength = cv::min(lights[i].length, lights[j].length);
                 double deltaAngle = cv::abs(lights[i].angle - lights[j].angle);
                 /* 对灯条组的长度，角度差，中心点tan值，x位置等进行筛选， */
-                if ((deltaAngle > 23.0 && minLength < 20) || (deltaAngle > 11.0 && minLength >= 20) ||
-                    cv::abs(lights[i].length - lights[j].length) / minLength > 0.5 ||
-                    cv::fastAtan2(cv::abs(AC2BC.y), cv::abs(AC2BC.x)) > 25.0 ||
-                    AC2BC.x / minLength > 5)
+                if ((deltaAngle > 23.0 && minLength < 20) || (deltaAngle > 11.0 && minLength >= 20)) {
                     continue;
+                }
+                if (cv::abs(lights[i].length - lights[j].length) / minLength > 0.5) {
+                    continue;
+                }
+                if (cv::fastAtan2(cv::abs(AC2BC.y), cv::abs(AC2BC.x)) > 25.0) {
+                    continue;
+                }
+                if (AC2BC.x / minLength > 5) {
+                    continue;
+                }
                 Target target;
                 /* 计算像素坐标 */
                 target.setPixelPts(lights[i].topPt, lights[i].bottomPt, lights[j].bottomPt, lights[j].topPt,
                     m_startPt);
                 if (cv::norm(AC2BC) / minLength > 2.5)
                     target.type = TARGET_LARGE;  // 大装甲
+
+                bool cancel = 0;
+                for (std::vector<Target>::iterator it = m_preTargets.begin(); it != m_preTargets.end(); it++) {
+                    const Target &t = *it;
+                    if (shareEdge(t, target)) {
+                        cv::Vec2f tLeft = t.pixelPts2f.tl - t.pixelPts2f.bl;
+                        cv::Vec2f tRight = t.pixelPts2f.tr - t.pixelPts2f.br;
+                        float angleDiffT = abs(std::atan2(tLeft[0], tLeft[1]) - std::atan2(tRight[0], tRight[1]));
+                        if (angleDiffT > deltaAngle) {
+                            m_preTargets.erase(it);
+                        } else {
+                            cancel = 1;
+                        }
+                        break;
+                    }
+                }
+                if (cancel) {
+                    continue;
+                }
+
                 /* 获得扩展区域像素坐标, 若无法扩展则放弃该目标 */
                 if (!target.convert2ExternalPts2f())
                     continue;
@@ -324,7 +362,7 @@ class Attack : AttackBase {
      * @param isSave 是否保存样本图片
      * @change m_targets 经过分类器的装甲板
      */
-    void m_classify_single_tensor(bool isSave = false) {
+    void m_classify_single_tensor(bool isSave, ImageShowClient& is) {
         if (m_preTargets.empty())
             return;
         auto input = tensorflow::Tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({1, fixedSize, fixedSize, 1}));
@@ -340,10 +378,6 @@ class Attack : AttackBase {
             cv::warpPerspective(tmp2, _crop, transMat, cv::Size(tmp2.size()));
             /* 转灰度图 */
             cv::cvtColor(_crop, _crop, cv::COLOR_BGR2GRAY);
-            /* 储存图 */
-            if (isSave) {
-                cv::imwrite(cv::format("../data/raw/%d.png", m_cropNameCounter++), _crop);
-            }
             cv::Mat image;
             if (loadAndPre(_crop, image)) {
                 /* mat转换为tensor */
@@ -356,10 +390,17 @@ class Attack : AttackBase {
                 auto output_c = outputs[0].scalar<float>();
                 float result = output_c();
                 /* 判断正负样本 */
-                if (0 <= result)
+                if (0 <= result) {
                     m_targets.emplace_back(_tar);
-            } else
+                }
+                /* 储存图 */
+                is.addImg("crop", _crop);
+                if (isSave) {
+                    cv::imwrite(cv::format("../data/raw/%d_%d.png", m_cropNameCounter++, 0 <= result), _crop);
+                }
+            } else {
                 continue;
+            }
         }
         m_is.addClassifiedTargets("After Classify", m_targets);
         std::cout << "Targets: " << m_targets.size() << std::endl;
@@ -520,7 +561,7 @@ class Attack : AttackBase {
 
         /* 3.通过分类器 */
         m_is.clock("m_classify");
-        m_classify_single_tensor(0);
+        m_classify_single_tensor(false, m_is);
         m_is.clock("m_classify");
 
         /* 如果已经有更新的一帧发出去了, 则取消本帧的发送 */
@@ -578,8 +619,10 @@ class Attack : AttackBase {
                     if (s_historyTargets.size() > 1) {
                         kalman.predict(0.1, &s_historyTargets[0].predictPitch, &s_historyTargets[0].predictYaw);
                         /* 转换为云台坐标点 */
-                        m_is.addText(cv::format("predictPitch %4f", s_historyTargets[0].predictPitch = rPitch));
-                        m_is.addText(cv::format("predictYaw %4f", s_historyTargets[0].predictYaw = rYaw));
+                        m_is.addText(cv::format("predictPitch %4f", s_historyTargets[0].predictPitch));
+                        m_is.addText(cv::format("predictYaw %4f", s_historyTargets[0].predictYaw));
+                        s_historyTargets[0].predictPitch = rPitch;
+                        s_historyTargets[0].predictYaw = rYaw;
                     }
                 }
 
