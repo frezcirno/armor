@@ -223,14 +223,14 @@ class Attack : AttackBase {
             for (size_t j = i + 1; j < lights.size(); ++j) {
                 cv::Point2f AC2BC = lights[j].centerPt - lights[i].centerPt;
                 /*对两个灯条的错位度进行筛选*/
-                float angle = (ligts[i].angle + lights[j].angle) / 2.0 / 180.0 * 3.14159265459;
-                if (abs(ligts[i].angle - ligts[j].angle) > 90) {
+                float angle = (lights[i].angle + lights[j].angle) / 2.0 / 180.0 * 3.14159265459;
+                if (abs(lights[i].angle - lights[j].angle) > 90) {
                     angle += 3.14159265459 / 2;
                 }
-                cv::Vector2f orientation(cos(angle), sin(angle));
-                cv::Vector2f p2p(AC2BC.x,AC2BC.y);
+                cv::Vec2f orientation(cos(angle), sin(angle));
+                cv::Vec2f p2p(AC2BC.x,AC2BC.y);
                 if(abs(orientation.dot(p2p)) >= 25)
-                    continue
+                    continue;
                 double minLength = cv::min(lights[i].length, lights[j].length);
                 double deltaAngle = cv::abs(lights[i].angle - lights[j].angle);
                 /* 对灯条组的长度，角度差，中心点tan值，x位置等进行筛选， */
@@ -556,7 +556,7 @@ class Attack : AttackBase {
                 float bulletSpeed;
                 float finalPitch = 0;
                 m_communicator.getBulletSpeed(&bulletSpeed);
-                s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed, gPitch, &finalPitch);
+                s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed, gPitch, finalPitch);
                 m_is.addText(cv::format("finalPitch %4f", finalPitch));
                 rYaw = s_historyTargets[0].rYaw;
                 rPitch = s_historyTargets[0].rPitch;

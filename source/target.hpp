@@ -269,7 +269,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
      * @change rYaw 最终需要移动的角度，单位：度
      * @change rPitch 最终需要移动的角度，单位：度
      */
-    void correctTrajectory_and_calcEuler(float bulletSpeed, float gPitch, float* finalPitch) {
+    void correctTrajectory_and_calcEuler(float bulletSpeed, float gPitch, float& finalPitch) {
         if (!bulletSpeed) {
             bulletSpeed = 12;
         }
@@ -281,11 +281,11 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         float yaw = cv::fastAtan2(ptsInGimbal.x, cv::sqrt(ptsInGimbal.y * ptsInGimbal.y + ptsInGimbal.z * ptsInGimbal.z));
         yaw = yaw > 180 ? yaw - 360 : yaw;
         rYaw = yaw;
-        if(!dd.pitchAdvance(bulletSpeed, vdistance, hdistance,*finalPitch)){
+        if(!dd.pitchAdvance(bulletSpeed, vdistance, hdistance, finalPitch)){
             rPitch = 0;
             return;
         }
-        *finalPitch = (*finalPitch) * 180 / M_PI;
-        rPitch = (*finalPitch) - gPitch;
+        finalPitch = finalPitch * 180 / M_PI;
+        rPitch = finalPitch - gPitch;
     }
 };  // end struct Target
