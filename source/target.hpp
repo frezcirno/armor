@@ -197,8 +197,8 @@ struct Target {                          // TODO: 结构体太大了，尝试优
          * 相机坐标系定义见上方
          */
         ptsInGimbal.x = ptsInCamera_Mat.at<double>(0, 0);
-        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) - 55;  // 垂直方向
-        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) - 25;  // 前后方向
+        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) + 45;  // 垂直方向 45mm
+        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2);  // 前后方向
     }
 
     /**

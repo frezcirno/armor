@@ -312,7 +312,7 @@ class CommunicatorSerial : public Communicator {
                                     std::lock_guard<std::mutex> lock(m_mutex);
                                     m_bulletSpeed.emplace_front(frame.speed);
                                     m_gYaws.emplace_front(frame.yaw / M_PI * 180);  // 转化成角度
-                                    m_gPitches.emplace_front(frame.pitch / M_PI * 180);
+                                    m_gPitches.emplace_front(frame.pitch / M_PI * 180 + 1.0);
                                     if (m_bulletSpeed.size() > 10) m_bulletSpeed.pop_back();
                                     if (m_gYaws.size() > 10) m_gYaws.pop_back();
                                     if (m_gPitches.size() > 10) m_gPitches.pop_back();

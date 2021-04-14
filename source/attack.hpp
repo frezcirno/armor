@@ -580,11 +580,11 @@ class Attack : AttackBase {
                 if (s_historyTargets.size() >= 3)
                     statusA = SEND_STATUS_AUTO_SHOOT;  //射击
 
-                m_is.addText(cv::format("ptsInGimbal: %2.3f %2.3f %2.3f",
+                m_is.addText(cv::format("ptsInGimbal: %2.2f %2.2f %2.2f",
                     s_historyTargets[0].ptsInGimbal.x / 1000.0,
                     s_historyTargets[0].ptsInGimbal.y / 1000.0,
                     s_historyTargets[0].ptsInGimbal.z / 1000.0));
-                m_is.addText(cv::format("ptsInWorld: %2.3f %2.3f %2.3f",
+                m_is.addText(cv::format("ptsInWorld: %2.2f %2.2f %2.2f",
                     s_historyTargets[0].ptsInWorld.x / 1000.0,
                     s_historyTargets[0].ptsInWorld.y / 1000.0,
                     s_historyTargets[0].ptsInWorld.z / 1000.0));
