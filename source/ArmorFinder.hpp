@@ -62,15 +62,19 @@ class ArmorFinder {
         /* 对contours进行筛选 */
         std::vector<Light> lights;
         for (const auto &_pts : contours) {
-            /* 设定最小面积 >= 5 */
+            /* 面积 >= 5 */
             if (_pts.size() < 5)
                 continue;
-            /* 寻找最小外接矩形 */
+
             cv::RotatedRect rRect = cv::minAreaRect(_pts);
-            /* 设定长宽比2/3～3/2 */
             double hw = rRect.size.height / rRect.size.width;
-            if (2.0 / 3 < hw && hw < 1.5)
+            /**
+             * 最小外接矩形长宽比2/3～3/2 
+             */
+            if (hw > 0.666667 && hw < 1.5) {
                 continue;
+            }
+
             /* 寻找灯条的顶部中点，底部中点与倾斜角 */
             Light _light;
             cv::Point2f topPt;     //顶部中点
@@ -99,8 +103,10 @@ class ArmorFinder {
             _light.length = cv::norm(bottomPt - topPt);  //长度
 
             /* 判断长度和倾斜角是否合乎要求 */
-            if (_light.length < 3.0 || 800.0 < _light.length || cv::abs(_light.angle - 90) > 30.0)
+            if (_light.length < 3.0 || 800.0 < _light.length || cv::abs(_light.angle - 90) > 30.0) {
                 continue;
+            }
+
             lights.emplace_back(_light);
         }
         m_is.addLights("lights", lights, m_startPt);
@@ -125,6 +131,7 @@ class ArmorFinder {
                     continue;
                 }
                 double minLength = cv::min(lights[i].length, lights[j].length);
+                double meanLength = (lights[i].length + lights[j].length) / 2.0;
                 double deltaAngle = cv::abs(lights[i].angle - lights[j].angle);
                 /* 对灯条组的长度，角度差，中心点tan值，x位置等进行筛选， */
                 if ((deltaAngle > 23.0 && minLength < 20) || (deltaAngle > 11.0 && minLength >= 20)) {
@@ -143,27 +150,32 @@ class ArmorFinder {
                 /* 计算像素坐标 */
                 target.setPixelPts(lights[i].topPt, lights[i].bottomPt, lights[j].bottomPt, lights[j].topPt,
                     m_startPt);
+                
+                /** 
+                 * small: 135 x 55 -> 2.454
+                 * large: 230 x 55 -> 4.1818
+                 */
                 if (cv::norm(AC2BC) / minLength > 2.5)
                     target.type = TARGET_LARGE;  // 大装甲
 
-                bool cancel = 0;
-                for (std::vector<Target>::iterator it = m_preTargets.begin(); it != m_preTargets.end(); it++) {
-                    const Target &t = *it;
-                    if (shareEdge(t, target)) {
-                        cv::Vec2f tLeft = t.pixelPts2f.tl - t.pixelPts2f.bl;
-                        cv::Vec2f tRight = t.pixelPts2f.tr - t.pixelPts2f.br;
-                        float angleDiffT = abs(std::atan2(tLeft[0], tLeft[1]) - std::atan2(tRight[0], tRight[1]));
-                        if (angleDiffT > deltaAngle) {
-                            m_preTargets.erase(it);
-                        } else {
-                            cancel = 1;
-                        }
-                        break;
-                    }
-                }
-                if (cancel) {
-                    continue;
-                }
+                // bool cancel = 0;
+                // for (std::vector<Target>::iterator it = m_preTargets.begin(); it != m_preTargets.end(); it++) {
+                //     const Target &t = *it;
+                //     if (shareEdge(t, target)) {
+                //         cv::Vec2f tLeft = t.pixelPts2f.tl - t.pixelPts2f.bl;
+                //         cv::Vec2f tRight = t.pixelPts2f.tr - t.pixelPts2f.br;
+                //         float angleDiffT = abs(std::atan2(tLeft[0], tLeft[1]) - std::atan2(tRight[0], tRight[1]));
+                //         if (angleDiffT > deltaAngle) {
+                //             m_preTargets.erase(it);
+                //         } else {
+                //             cancel = 1;
+                //         }
+                //         break;
+                //     }
+                // }
+                // if (cancel) {
+                //     continue;
+                // }
 
                 /* 获得扩展区域像素坐标, 若无法扩展则放弃该目标 */
                 if (!target.convert2ExternalPts2f())

@@ -208,8 +208,9 @@ class DaHuaVision : public Capture {
      */
 
     bool play() override {
+        using namespace std::chrono_literals;
         /* 让SDK进入工作模式, 开始接收来自相机发送的图像数据.
-     * 如果当前相机是触发模式, 则需要接收到触发帧以后才会更新图像 */
+         * 如果当前相机是触发模式, 则需要接收到触发帧以后才会更新图像 */
         /* 开始取图 */
         bool isStartGrabbingSuccess = streamPtr->startGrabbing();
         if (isStartGrabbingSuccess) {

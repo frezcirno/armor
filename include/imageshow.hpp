@@ -296,6 +296,8 @@ class ImageShowClient : ImageShowBase {
         int thickness = 1;
         for (const auto &light : lights) {
             cv::line(m_frame, cv::Point(light.topPt.x + offset.x, light.topPt.y + offset.y),
+                cv::Point(light.centerPt.x + offset.x, light.centerPt.y + offset.y), currentColor, thickness);
+            cv::line(m_frame, cv::Point(light.centerPt.x + offset.x, light.centerPt.y + offset.y),
                 cv::Point(light.bottomPt.x + offset.x, light.bottomPt.y + offset.y), currentColor, thickness);
         }
         m_putMarginText(eventName + cv::format(": %d", int(lights.size())), currentColor, thickness);

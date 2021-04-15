@@ -165,6 +165,7 @@ class TfClassifier {
             cv::Mat _crop;
             /* 投影变换 */
             cv::warpPerspective(tmp2, _crop, transMat, cv::Size(tmp2.size()));
+            is.addImg("crop", _crop);
             /* 转灰度图 */
             cv::cvtColor(_crop, _crop, cv::COLOR_BGR2GRAY);
             cv::Mat image;
@@ -179,11 +180,10 @@ class TfClassifier {
                 auto output_c = outputs[0].scalar<float>();
                 float result = output_c();
                 /* 判断正负样本 */
-                if (0 <= result) {
+                if (0.3 <= result) {
                     targets.emplace_back(_tar);
                 }
                 /* 储存图 */
-                is.addImg("crop", _crop);
                 if (false) {
                     cv::imwrite(cv::format("../data/raw/%d_%d.png", s_cropNameCounter++, 0 <= result), _crop);
                 }
