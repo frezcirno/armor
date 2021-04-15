@@ -1,5 +1,6 @@
 #pragma once
 
+#include "semaphore.hpp"
 #include <atomic>
 #include <mutex>
 #include <opencv2/opencv.hpp>
@@ -159,4 +160,3 @@ class Capture {
      */
     virtual void release() {}
 };
-

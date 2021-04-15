@@ -3,6 +3,9 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 
+#include "base.hpp"
+#include "ddsolver.hpp"
+
 /**
  * 四边形数据结构
  */
@@ -17,9 +20,18 @@ struct Quadrilateral {
     }
 };
 
+/**
+ * 装甲板类型
+ */
+typedef enum {
+    TARGET_SMALL,
+    TARGET_LARGE
+} emTargetType;
+
 DDSolver dd = DDSolver();  //DDSolver::get_k1(bulletSpeed,pitch,x,y)
 
 /**
+ * 装甲板
  */
 struct Target {                          // TODO: 结构体太大了，尝试优化不必要的变量
     Quadrilateral<float> pixelPts2f;     // 硬件ROI图幅下的像素坐标（即m_bgr_raw中的坐标）
@@ -198,7 +210,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
          */
         ptsInGimbal.x = ptsInCamera_Mat.at<double>(0, 0);
         ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) + 45;  // 垂直方向 45mm
-        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2);  // 前后方向
+        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2);       // 前后方向
     }
 
     /**
@@ -269,19 +281,19 @@ struct Target {                          // TODO: 结构体太大了，尝试优
      * @change rYaw 最终需要移动的角度，单位：度
      * @change rPitch 最终需要移动的角度，单位：度
      */
-    void correctTrajectory_and_calcEuler(float bulletSpeed, float gPitch, float& finalPitch) {
+    void correctTrajectory_and_calcEuler(float bulletSpeed, float gPitch, float &finalPitch) {
         if (!bulletSpeed) {
             bulletSpeed = 12;
         }
         bulletSpeed = 12;
 
         double vdistance = 0.001 * cv::sqrt(ptsInWorld.x * ptsInWorld.x + ptsInWorld.z * ptsInWorld.z);  // 水平方向距离，单位m
-        double hdistance = 0.001 * -ptsInWorld.y; // 竖直方向距离，向上为正，单位m
+        double hdistance = 0.001 * -ptsInWorld.y;                                                        // 竖直方向距离，向上为正，单位m
 
         float yaw = cv::fastAtan2(ptsInGimbal.x, cv::sqrt(ptsInGimbal.y * ptsInGimbal.y + ptsInGimbal.z * ptsInGimbal.z));
         yaw = yaw > 180 ? yaw - 360 : yaw;
         rYaw = yaw;
-        if(!dd.pitchAdvance(bulletSpeed, vdistance, hdistance, finalPitch)){
+        if (!dd.pitchAdvance(bulletSpeed, vdistance, hdistance, finalPitch)) {
             rPitch = 0;
             return;
         }

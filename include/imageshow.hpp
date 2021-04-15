@@ -14,9 +14,6 @@
 #include "sort/sort.h"
 #include "target.hpp"
 
-using std::cout;
-using std::endl;
-
 /**
  * ImageShow 基类, 静态变量用于线程间同步和共享
  */
@@ -739,6 +736,8 @@ class ImageShowServer : ImageShowBase {
      * 进行图像显示
      */
     void mainloop() {
+        using namespace std::chrono_literals;
+
         if (s_mode == 0) {
             PRINT_INFO("[is Server] mode = 0 quit\n");
             return;

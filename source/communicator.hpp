@@ -7,14 +7,11 @@
 #include <atomic>
 #include <cmath>
 #include <opencv2/opencv.hpp>
-#include <thread>
-
 #include <serial/serial.h>
+#include <thread>
 
 #include "crc_table.hpp"
 #include "usbio/usbio.hpp"
-
-#include "base.hpp"
 
 //与电控的通信，需要与电控协商确定发的数据（共三个标识符）
 //1:击打状态
@@ -93,8 +90,8 @@ class Communicator {
 
     std::atomic_bool m_isDisable;  // 是否使能
 
-    std::atomic<int64> m_lastTick;
-    std::atomic<int64> m_currentInterval;
+    std::atomic<int64_t> m_lastTick;
+    std::atomic<int64_t> m_currentInterval;
 
   public:
     //构造函数
@@ -154,7 +151,7 @@ class Communicator {
      * 获得当前 wait_and_get 函数获得的图像时间间隔
      * @return 采集时间间隔us
      */
-    int64 getCurrentInterval() {
+    int64_t getCurrentInterval() {
         return m_currentInterval.load();
     }
 
@@ -299,7 +296,7 @@ class CommunicatorSerial : public Communicator {
                     while (buffer.size() >= m_frameSize) {
                         size_t i = 0;
                         for (i = 0; i < buffer.size() - m_frameSize + 1; ++i) {
-                            const unsigned char* start = buffer.data() + i;
+                            const unsigned char *start = buffer.data() + i;
                             if (m_checkFrame(start)) {
                                 /* 更新值 begin */
                                 struct __FrameSt frame;

@@ -1,13 +1,5 @@
 #pragma once
 
-#include "ThreadPool.h"
-#include "base.hpp"
-#include "capture/capture.hpp"
-#include "communicator.hpp"
-#include "imageshow.hpp"
-#include "kalman.hpp"
-#include "sort/sort.h"
-#include "target.hpp"
 #include <atomic>
 #include <deque>
 #include <dirent.h>
@@ -18,22 +10,16 @@
 #include <thread>
 #include <utility>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wignored-attributes"
-#include "google/protobuf/wrappers.pb.h"
-#include "tensorflow/core/framework/graph.pb.h"
-#include "tensorflow/core/framework/tensor.h"
-#include "tensorflow/core/public/session.h"
-#include "tensorflow/core/util/command_line_flags.h"
-#pragma GCC diagnostic pop
-
-// TODO: 把这些静态常量移到配置文件中
-/*模型路径*/
-const std::string model_path = "../Model/happyModel.pb";
-/*输入输出节点详见ipynb的summary*/
-const std::string input_name = "input_1:0";
-const std::string output_name = "y/Sigmoid:0";
-const int fixedSize = 32;
+#include "ArmorFinder.hpp"
+#include "TfClassifier.hpp"
+#include "base.hpp"
+#include "capture/capture.hpp"
+#include "communicator.hpp"
+#include "imageshow.hpp"
+#include "kalman.hpp"
+#include "pid.hpp"
+#include "sort/sort.h"
+#include "target.hpp"
 
 const unsigned int max_age = 10;
 const unsigned int min_hits = 1;
@@ -44,65 +30,22 @@ const double iou_threshold = 0.1;
  */
 class AttackBase {
   protected:
-    static std::mutex s_mutex;                                                               // 互斥锁
-    static std::atomic<int64_t> s_latestTimeStamp;                                           // 已经发送的帧编号
-    static std::deque<Target> s_historyTargets;                                              // 打击历史, 最新的在头部, [0, 1, 2, 3, ....]
-    static Kalman kalman;                                                                    // 卡尔曼滤波
-    static std::unique_ptr<tensorflow::Session, void (*)(tensorflow::Session *)> s_session;  // 分类器
-    static std::unique_ptr<sort::SORT> s_sortTracker;                                        // DeepSORT 跟踪
-    static size_t s_trackId;                                                                 // DeepSORT 跟踪对象Id
-
-    /**
-     * @param image 图片
-     * @param t tensor
-     * 将图片从mat转化为tensor
-     */
-    static void mat2Tensor(const cv::Mat &image, tensorflow::Tensor &t) {
-        float *tensor_data_ptr = t.flat<float>().data();
-        cv::Mat fake_mat(image.rows, image.cols, CV_32FC(image.channels()), tensor_data_ptr);
-        image.convertTo(fake_mat, CV_32FC(image.channels()));
-    }
-
-  private:
-    /**
-     * 初始化一个session
-     */
-    static decltype(s_session) initTFSession() {
-        using namespace tensorflow;
-
-        Status s;
-        Session *tf_session;
-
-        s = NewSession(SessionOptions(), &tf_session);
-        if (!s.ok())
-            std::cout << "[TensorFlow] " << s.ToString() << std::endl;
-        else
-            std::cout << "[TensorFlow] Create session successfully" << std::endl;
-
-        /* 从pb文件中读取模型 */
-        GraphDef graph_def;
-        s = ReadBinaryProto(Env::Default(), model_path, &graph_def);  //读取Graph, 如果是文本形式的pb,使用ReadTextProto
-        if (!s.ok())
-            std::cout << "[TensorFlow] " << s.ToString() << std::endl;
-        else
-            std::cout << "[TensorFlow] Load graph protobuf successfully" << std::endl;
-
-        /* 将模型设置到创建的Session里 */
-        s = tf_session->Create(graph_def);
-        if (!s.ok())
-            std::cout << s.ToString() << std::endl;
-        else
-            std::cout << "[TensorFlow] Add graph to session successfully" << std::endl;
-
-        return {tf_session, [](Session *tfsession) { tfsession->Close(); }};
-    }
+    static std::mutex s_mutex;                      // 互斥锁
+    static std::atomic<int64_t> s_latestTimeStamp;  // 已经发送的帧编号
+    static std::deque<Target> s_historyTargets;     // 打击历史, 最新的在头部, [0, 1, 2, 3, ....]
+    static ArmorFinder s_armorFinder;
+    static TfClassifier s_tfClassifier;
+    static Kalman kalman;                              // 卡尔曼滤波
+    static std::unique_ptr<sort::SORT> s_sortTracker;  // DeepSORT 跟踪
+    static size_t s_trackId;                           // DeepSORT 跟踪对象Id
 };
 /* 类静态成员初始化 */
 std::mutex AttackBase::s_mutex;
 std::atomic<int64_t> AttackBase::s_latestTimeStamp(0);
 std::deque<Target> AttackBase::s_historyTargets;
+ArmorFinder AttackBase::s_armorFinder;
+TfClassifier AttackBase::s_tfClassifier;
 Kalman AttackBase::kalman;
-decltype(AttackBase::s_session) AttackBase::s_session = AttackBase::initTFSession();
 decltype(AttackBase::s_sortTracker) AttackBase::s_sortTracker(std::make_unique<sort::SORT>(iou_threshold, max_age, min_hits));
 size_t AttackBase::s_trackId;
 
@@ -122,290 +65,19 @@ class Attack : AttackBase {
     cv::Point2i m_startPt;   // ROI左上角点坐标
     bool m_isEnablePredict;  // 是否开预测
 
-    int64_t m_currentTimeStamp;  // 当前时间戳
-    PID &m_pid;                  // PID
-    bool m_isUseDialte;          // 是否膨胀
-    bool mode;                   // 红蓝模式
+    int64_t m_currentTimeStamp = 0;  // 当前时间戳
+    PID &m_pid;                      // PID
 
   public:
     explicit Attack(Communicator &communicator, PID &pid, ImageShowClient &isClient) : m_communicator(communicator),
                                                                                        m_is(isClient),
-                                                                                       m_isEnablePredict(true), m_currentTimeStamp(0), m_pid(pid), m_isUseDialte(false) {
-        m_isUseDialte = stConfig.get<bool>("auto.is-dilate");
+                                                                                       m_isEnablePredict(true),
+                                                                                       m_pid(pid) {
+        s_armorFinder.useDialte(stConfig.get<bool>("auto.is-dilate"));
     }
-    void setMode(bool colorMode) { mode = colorMode; }
+    void setMode(bool colorMode) { s_armorFinder.colorMode(colorMode); }
 
   private:
-    static bool shareEdge(const Target &t1, const Target &t2) {
-        if (t1.pixelPts2f.tr == t2.pixelPts2f.tl && t1.pixelPts2f.br == t2.pixelPts2f.bl) {
-            return true;
-        }
-        if (t2.pixelPts2f.tr == t1.pixelPts2f.tl && t2.pixelPts2f.br == t1.pixelPts2f.bl) {
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * 通过hsv筛选和进行预处理获得装甲板
-     * @change m_preTargets 预检测得到的装甲板列表, 可能有两个装甲板共享一个灯条的情况发生
-     */
-    void m_preDetect() {
-        cv::Mat bgrChecked;
-
-        /* 使用inRange对颜色进行筛选: m_bgr -> bgrChecked */
-        m_is.clock("inRange");
-        if (mode) {
-            /* 红色 */
-            cv::inRange(m_bgr, cv::Scalar(0, 0, 140), cv::Scalar(70, 70, 255), bgrChecked);
-        } else {
-            /* 蓝色 */
-            cv::inRange(m_bgr, cv::Scalar(130, 100, 0), cv::Scalar(255, 255, 65), bgrChecked);
-        }
-        m_is.clock("inRange");
-
-        /* 进行膨胀操作（默认关闭）: bgrChecked -> bgrChecked */
-        // m_is.addImg("bgrChecked", bgrChecked, false);
-        if (m_isUseDialte) {
-            cv::Mat element = getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-            dilate(bgrChecked, bgrChecked, element);
-            // m_is.addImg("dilate", bgrChecked, false);
-        }
-
-        /* 寻找边缘，并圈出contours: bgrChecked -> contours */
-        std::vector<std::vector<cv::Point2i>> contours;
-        cv::findContours(bgrChecked, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
-        m_is.addEvent("contours", contours, m_startPt);
-
-        /* 对contours进行筛选 */
-        std::vector<Light> lights;
-        for (const auto &_pts : contours) {
-            /* 设定最小面积 >= 5 */
-            if (_pts.size() < 5)
-                continue;
-            /* 寻找最小外接矩形 */
-            cv::RotatedRect rRect = cv::minAreaRect(_pts);
-            /* 设定长宽比2/3～3/2 */
-            double hw = rRect.size.height / rRect.size.width;
-            if (0.6667 < hw && hw < 1.5)
-                continue;
-            /* 寻找灯条的顶部中点，底部中点与倾斜角 */
-            Light _light;
-            cv::Point2f topPt;     //顶部中点
-            cv::Point2f bottomPt;  //底部中点
-            cv::Point2f pts[4];    // 四个角点
-            rRect.points(pts);
-            if (rRect.size.width > rRect.size.height)  //根据外接矩形的特性需调整点
-            {
-                bottomPt = (pts[2] + pts[3]) / 2.0;
-                topPt = (pts[0] + pts[1]) / 2.0;
-                _light.angle = cv::abs(rRect.angle);
-            } else {
-                bottomPt = (pts[1] + pts[2]) / 2;
-                topPt = (pts[0] + pts[3]) / 2;
-                _light.angle = cv::abs(rRect.angle - 90);
-            }
-            /* 判断顶部和底部中点是否设置正确，并将中心点与长度一并写入_light参数中 */
-            if (topPt.y > bottomPt.y) {
-                _light.topPt = bottomPt;
-                _light.bottomPt = topPt;
-            } else {
-                _light.topPt = topPt;
-                _light.bottomPt = bottomPt;
-            }
-            _light.centerPt = rRect.center;              //中心点
-            _light.length = cv::norm(bottomPt - topPt);  //长度
-
-            /* 判断长度和倾斜角是否合乎要求 */
-            if (_light.length < 3.0 || 800.0 < _light.length || cv::abs(_light.angle - 90) > 30.0)
-                continue;
-            lights.emplace_back(_light);
-        }
-        m_is.addEvent("lights", lights, m_startPt);
-
-        /* 对筛选出的灯条按x大小进行排序 */
-        std::sort(lights.begin(), lights.end(), [](const Light &a_, const Light &b_) -> bool {
-            return a_.centerPt.x < b_.centerPt.x;
-        });
-
-        /* 对灯条进行两两组合并筛选出预检测的装甲板 */
-        for (size_t i = 0; i < lights.size(); ++i) {
-            for (size_t j = i + 1; j < lights.size(); ++j) {
-                cv::Point2f AC2BC = lights[j].centerPt - lights[i].centerPt;
-                /*对两个灯条的错位度进行筛选*/
-                float angleSum = (lights[i].angle + lights[j].angle) / 2.0 / 180.0 * M_PI;  // in rad
-                if (abs(lights[i].angle - lights[j].angle) > 90) {
-                    angleSum += M_PI / 2;
-                }
-                cv::Vec2f orientation(cos(angleSum), sin(angleSum));
-                cv::Vec2f p2p(AC2BC.x, AC2BC.y);
-                if (abs(orientation.dot(p2p)) >= 25) {
-                    continue;
-                }
-                double minLength = cv::min(lights[i].length, lights[j].length);
-                double deltaAngle = cv::abs(lights[i].angle - lights[j].angle);
-                /* 对灯条组的长度，角度差，中心点tan值，x位置等进行筛选， */
-                if ((deltaAngle > 23.0 && minLength < 20) || (deltaAngle > 11.0 && minLength >= 20)) {
-                    continue;
-                }
-                if (cv::abs(lights[i].length - lights[j].length) / minLength > 0.5) {
-                    continue;
-                }
-                if (cv::fastAtan2(cv::abs(AC2BC.y), cv::abs(AC2BC.x)) > 25.0) {
-                    continue;
-                }
-                if (AC2BC.x / minLength > 5) {
-                    continue;
-                }
-                Target target;
-                /* 计算像素坐标 */
-                target.setPixelPts(lights[i].topPt, lights[i].bottomPt, lights[j].bottomPt, lights[j].topPt,
-                    m_startPt);
-                if (cv::norm(AC2BC) / minLength > 2.5)
-                    target.type = TARGET_LARGE;  // 大装甲
-
-                bool cancel = 0;
-                for (std::vector<Target>::iterator it = m_preTargets.begin(); it != m_preTargets.end(); it++) {
-                    const Target &t = *it;
-                    if (shareEdge(t, target)) {
-                        cv::Vec2f tLeft = t.pixelPts2f.tl - t.pixelPts2f.bl;
-                        cv::Vec2f tRight = t.pixelPts2f.tr - t.pixelPts2f.br;
-                        float angleDiffT = abs(std::atan2(tLeft[0], tLeft[1]) - std::atan2(tRight[0], tRight[1]));
-                        if (angleDiffT > deltaAngle) {
-                            m_preTargets.erase(it);
-                        } else {
-                            cancel = 1;
-                        }
-                        break;
-                    }
-                }
-                if (cancel) {
-                    continue;
-                }
-
-                /* 获得扩展区域像素坐标, 若无法扩展则放弃该目标 */
-                if (!target.convert2ExternalPts2f())
-                    continue;
-                m_preTargets.emplace_back(std::move(target));
-            }
-        }
-        m_is.addTargets("preTargets", m_preTargets);
-    }
-    int m_cropNameCounter = 0;  // TODO: magic variable
-
-    /**
-     * @param mat 图片
-     * @param thre_proportion 比例阈值 0.1
-     * 得到二值化阈值
-     * @return i 二值化阈值
-     */
-    int getThreshold(const cv::Mat &mat, double thre_proportion = 0.1) {
-        /* 计算总像素数目 */
-        uint32_t iter_rows = mat.rows;
-        uint32_t iter_cols = mat.cols;
-        auto sum_pixel = iter_rows * iter_cols;
-        /* 判断是否连续*/
-        if (mat.isContinuous()) {
-            iter_cols = sum_pixel;
-            iter_rows = 1;
-        }
-        /* 新建数组置零 */
-        int histogram[256];
-        memset(histogram, 0, sizeof(histogram));
-        /* 像素排序 */
-        for (uint32_t i = 0; i < iter_rows; ++i) {
-            const auto *lhs = mat.ptr<uchar>(i);
-            for (uint32_t j = 0; j < iter_cols; ++j)
-                ++histogram[*lhs++];
-        }
-        auto left = thre_proportion * sum_pixel;
-        int i = 255;
-        while ((left -= histogram[i--]) > 0)
-            ;
-        return i > 0 ? i : 0;
-    }
-    /**
-     * @param img 图片
-     * @param result
-     * 进行图片的预处理和高光补偿
-     * @return true/false
-     */
-    bool loadAndPre(cv::Mat img, cv::Mat &result) {
-        if (img.cols == 0)
-            return false;
-        /* 调整大小 同比缩放至fixedsize*fixedsize以内 */
-        if (img.cols < img.rows)
-            resize(img, img, {int(img.cols * 1.0 / img.rows * fixedSize), fixedSize});
-        else
-            resize(img, img, {fixedSize, int(img.rows * 1.0 / img.cols * fixedSize)});
-        /* 剪去边上多余部分 */
-        int cutRatio1 = 0.15 * img.cols;
-        int cutRatio2 = 0.05 * img.rows;
-        cv::Mat blank = cv::Mat(cv::Size(fixedSize, fixedSize), img.type(), cv::Scalar(0));                            //新建空白
-        cv::Mat mask = img(cv::Rect(cutRatio1, cutRatio2, img.cols - 2 * cutRatio1, img.rows - 2 * cutRatio2));        //建立腌摸
-        cv::Mat imageROI = blank(cv::Rect(cutRatio1, cutRatio2, img.cols - 2 * cutRatio1, img.rows - 2 * cutRatio2));  //建立需要覆盖区域的ROI
-        mask.copyTo(imageROI, mask);
-        int thre = getThreshold(blank);  //均值获取阈值
-        result = blank.clone();
-        /* 使用二值化阈值补高光 */
-        for (int i = 0; i < result.rows; i++) {
-            for (int j = 0; j < result.cols; j++) {
-                if ((int)result.at<u_char>(i, j) > thre)
-                    result.at<u_char>(i, j) = 200;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * 基于tensorflow的分类器
-     * @param isSave 是否保存样本图片
-     * @change m_targets 经过分类器的装甲板
-     */
-    void m_classify_single_tensor(bool isSave, ImageShowClient& is) {
-        if (m_preTargets.empty())
-            return;
-        auto input = tensorflow::Tensor(tensorflow::DT_FLOAT, tensorflow::TensorShape({1, fixedSize, fixedSize, 1}));
-
-        for (auto &_tar : m_preTargets) {
-            auto pixelPts2f_Ex_array = _tar.pixelPts2f_Ex.toArray();
-            cv::Rect tmp = cv::boundingRect(pixelPts2f_Ex_array);
-            cv::Mat tmp2 = m_bgr_raw(tmp).clone();
-            /* 将图片变成目标大小 */
-            cv::Mat transMat = cv::getPerspectiveTransform(pixelPts2f_Ex_array, pixelPts2f_Ex_array);
-            cv::Mat _crop;
-            /* 投影变换 */
-            cv::warpPerspective(tmp2, _crop, transMat, cv::Size(tmp2.size()));
-            /* 转灰度图 */
-            cv::cvtColor(_crop, _crop, cv::COLOR_BGR2GRAY);
-            cv::Mat image;
-            if (loadAndPre(_crop, image)) {
-                /* mat转换为tensor */
-                mat2Tensor(image, input);
-                /* 保留最终输出 */
-                std::vector<tensorflow::Tensor> outputs;
-                /* 计算最后结果 */
-                TF_CHECK_OK(s_session->Run({std::pair<std::string, tensorflow::Tensor>(input_name, input)}, {output_name}, {}, &outputs));
-                /* 获取输出 */
-                auto output_c = outputs[0].scalar<float>();
-                float result = output_c();
-                /* 判断正负样本 */
-                if (0 <= result) {
-                    m_targets.emplace_back(_tar);
-                }
-                /* 储存图 */
-                is.addImg("crop", _crop);
-                if (isSave) {
-                    cv::imwrite(cv::format("../data/raw/%d_%d.png", m_cropNameCounter++, 0 <= result), _crop);
-                }
-            } else {
-                continue;
-            }
-        }
-        m_is.addClassifiedTargets("After Classify", m_targets);
-        std::cout << "Targets: " << m_targets.size() << std::endl;
-    }
-
     /**
      * Get the distance between a sort::Track and a Target
      */
@@ -550,18 +222,18 @@ class Attack : AttackBase {
         if (s_historyTargets.size() >= 2 && s_historyTargets[0].rTick <= 10) {
             cv::Rect latestShootRect;
             getBoundingRect(s_historyTargets[0], latestShootRect, stFrameInfo.size, true);
-            m_is.addEvent("Bounding Rect", latestShootRect);
+            m_is.addRect("Bounding Rect", latestShootRect);
             m_bgr = m_bgr(latestShootRect);
             m_startPt = latestShootRect.tl();
         }
         m_is.addText(cv::format("Start Point: %2d %2d", m_startPt.x, m_startPt.y));
 
         /* 2.预检测 */
-        m_preDetect();
+        s_armorFinder.detect(m_bgr, m_preTargets, m_is, m_startPt);
 
         /* 3.通过分类器 */
         m_is.clock("m_classify");
-        m_classify_single_tensor(false, m_is);
+        s_tfClassifier.m_classify_single_tensor(m_bgr_raw, m_preTargets, m_targets, m_is);
         m_is.clock("m_classify");
 
         /* 如果已经有更新的一帧发出去了, 则取消本帧的发送 */
