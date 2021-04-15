@@ -62,8 +62,8 @@ class DDSolver {
         if ((x > bulletSpeed * bulletSpeed / (2 * g)) || (y > bulletSpeed * bulletSpeed / g)) {
             return false;
         }
-        PRINT_INFO("\n\n\n");
-        PRINT_INFO("x: %f, y: %f, k1=%f\n", x, y, k1);
+        // PRINT_INFO("\n\n\n");
+        // PRINT_INFO("x: %f, y: %f, k1=%f\n", x, y, k1);
         do {
             pitch_ = atan2(iterY, x);
             float vx_ = bulletSpeed * cos(pitch_);
@@ -72,7 +72,7 @@ class DDSolver {
             float y_ = vy_ * t_ - 0.5 * g * t_ * t_;
             diff = y - y_;
             iterY += alpha * diff;
-            PRINT_INFO("pitch=%2f, vx=%f, vy=%f, t=%f, iterY=%f, diff=%f, y_=%f \n", pitch_ * 180 / M_PI, vx_, vy_, t_, iterY, diff, y_);
+            // PRINT_INFO("pitch=%2f, vx=%f, vy=%f, t=%f, iterY=%f, diff=%f, y_=%f \n", pitch_ * 180 / M_PI, vx_, vy_, t_, iterY, diff, y_);
         } while (abs(diff) >= 0.001 && ++t < iter_times);  // 误差小于1mm
         return true;
     }
