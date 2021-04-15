@@ -293,8 +293,8 @@ class Attack : AttackBase {
                         /* 转换为云台坐标点 */
                         m_is.addText(cv::format("predictPitch %4f", s_historyTargets[0].predictPitch));
                         m_is.addText(cv::format("predictYaw %4f", s_historyTargets[0].predictYaw));
-                        s_historyTargets[0].predictPitch = rPitch;
-                        s_historyTargets[0].predictYaw = rYaw;
+                        // s_historyTargets[0].predictPitch = rPitch;
+                        // s_historyTargets[0].predictYaw = rYaw;
                     }
                 }
 

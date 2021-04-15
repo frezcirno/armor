@@ -69,7 +69,7 @@ class ArmorFinder {
             cv::RotatedRect rRect = cv::minAreaRect(_pts);
             /* 设定长宽比2/3～3/2 */
             double hw = rRect.size.height / rRect.size.width;
-            if (0.6667 < hw && hw < 1.5)
+            if (2.0 / 3 < hw && hw < 1.5)
                 continue;
             /* 寻找灯条的顶部中点，底部中点与倾斜角 */
             Light _light;

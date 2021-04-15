@@ -464,35 +464,6 @@ class ImageShowClient : ImageShowBase {
     }
 
     /**
-     * 绘制预测目标
-     * @param eventName 事件名, 显示在左上角
-     * @param targets 绘制对象
-     */
-    void addPredictTarget(const cv::String &eventName, const Target &target) {
-        if (s_mode == 0)
-            return;
-        cv::Scalar currentColor = m_getCurrentColor();
-        int thickness = 1;
-        cv::Mat ptsInCamera_Predict_Mat = (cv::Mat_<double>(3, 1)
-                                               << target.ptsInGimbal_Predict.x,
-            target.ptsInGimbal_Predict.y, target.ptsInGimbal_Predict.z);
-        cv::Mat ptsInArmor_Predict_Mat = target.rvMat.inv() * (ptsInCamera_Predict_Mat - target.tv);
-
-        std::vector<cv::Point3f> objpt = {cv::Point3f(ptsInArmor_Predict_Mat.at<double>(0, 0),
-            ptsInArmor_Predict_Mat.at<double>(1, 0),
-            ptsInArmor_Predict_Mat.at<double>(2, 0) - 150)};
-        std::vector<cv::Point2f> imgpt;
-        cv::projectPoints(objpt, target.rv, target.tv, stCamera.camMat, stCamera.distCoeffs, imgpt);
-        int length = 300;
-        cv::Point2f offset = cv::Point2f(stFrameInfo.offset);
-        cv::line(m_frame, imgpt[0] - cv::Point2f(0, length) - offset,
-            imgpt[0] + cv::Point2f(0, length) - offset, currentColor,
-            thickness);
-
-        m_putMarginText(eventName, currentColor, thickness);
-    }
-
-    /**
      * 显示额外图像, 拷贝传递, 性能损失严重
      * @param winName 窗口名
      * @param img 图像
