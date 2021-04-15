@@ -114,7 +114,7 @@ int main() {
                     isClient.clock("run");
 
                     /* 获取云台角度 */
-                    // communicator.getGlobalAngle(&gYaw, &gPitch);
+                    communicator.getGlobalAngle(&gYaw, &gPitch);
 
                     /* 获取工作模式(风车/装甲板) */
                     emWorkMode mode = communicator.getWorkMode();

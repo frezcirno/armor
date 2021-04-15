@@ -188,8 +188,11 @@ class MindVision : public Capture {
      * @return true / false
      */
     bool play() override {
-        /* 让SDK进入工作模式, 开始接收来自相机发送的图像数据.
-     * 如果当前相机是触发模式, 则需要接收到触发帧以后才会更新图像 */
+        using namespace std::chrono_literals;
+        /**
+         * 让SDK进入工作模式, 开始接收来自相机发送的图像数据.
+         * 如果当前相机是触发模式, 则需要接收到触发帧以后才会更新图像
+         */
         int iState = CameraPlay(m_hCamera);
         if (iState == CAMERA_STATUS_SUCCESS) {
             m_isOpened.exchange(true);

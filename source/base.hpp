@@ -1,12 +1,10 @@
 #pragma once
 
-#include "ddsolver.hpp"
-#include "debug.h"
-#include "pid.hpp"
-#include "semaphore.hpp"
-#include "toml.hpp"
 #include <cmath>
 #include <opencv2/opencv.hpp>
+
+#include "debug.h"
+#include "toml.hpp"
 
 /**
  * 配置文件结构体
@@ -37,8 +35,8 @@ struct Config {
  * 采集的图像的参数
  */
 struct FrameInfo {
-    cv::Size2i size = cv::Size2i(0, 0); // 硬件返回的图像尺寸
-    cv::Point2i offset = cv::Point2i(0, 0); // 硬件ROI的起始点
+    cv::Size2i size = cv::Size2i(0, 0);      // 硬件返回的图像尺寸
+    cv::Point2i offset = cv::Point2i(0, 0);  // 硬件ROI的起始点
 } stFrameInfo;
 
 /**
@@ -104,8 +102,3 @@ struct Light {
     double angle = 0;
     double length = 0;
 };
-
-typedef enum {
-    TARGET_SMALL,
-    TARGET_LARGE
-} emTargetType;

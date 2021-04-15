@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdio>
 
-#define STATE(level, name, content) cout << "--- [" << level << "][" << name << "] " << content << endl;
+#define STATE(level, name, content) std::cout << "--- [" << level << "][" << name << "] " << content << std::endl;
 
 /* 绿色 */
 #define PRINT_INFO(content, ...) printf("\033[32m" content "\033[0m", ##__VA_ARGS__)

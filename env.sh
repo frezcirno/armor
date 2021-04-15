@@ -16,6 +16,16 @@ if [[ "$USER_ID" != "0" ]]; then
 	exit 1
 fi
 
+# echo -n "是否要更换 Ubuntu 镜像源至 mirrors.tuna.tsinghua.edu.cn [Y/n]? "
+# read ANSWER
+# if [ "$ANSWER" = "Y" -o "$ANSWER" = "y" -o "$ANSWER" = "" ]; then
+# sed -e "s/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g" \
+# -e "s/security.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g" \
+# -e "s/cn.mirrors.tuna.tsinghua.edu.cn/mirrors.tuna.tsinghua.edu.cn/g" \
+# -i /etc/apt/sources.list
+# apt update
+# fi
+
 echo "Installing packages......."
 apt install -y build-essential cmake git vim libgtk2.0-dev libboost-dev libboost-thread-dev libusb-1.0-0-dev catkin lsb linux-headers-generic libdlib-dev libopencv-dev
 snap install code --classic

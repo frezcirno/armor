@@ -14,9 +14,6 @@
 #include "sort/sort.h"
 #include "target.hpp"
 
-using std::cout;
-using std::endl;
-
 /**
  * ImageShow 基类, 静态变量用于线程间同步和共享
  */
@@ -299,6 +296,8 @@ class ImageShowClient : ImageShowBase {
         int thickness = 1;
         for (const auto &light : lights) {
             cv::line(m_frame, cv::Point(light.topPt.x + offset.x, light.topPt.y + offset.y),
+                cv::Point(light.centerPt.x + offset.x, light.centerPt.y + offset.y), currentColor, thickness);
+            cv::line(m_frame, cv::Point(light.centerPt.x + offset.x, light.centerPt.y + offset.y),
                 cv::Point(light.bottomPt.x + offset.x, light.bottomPt.y + offset.y), currentColor, thickness);
         }
         m_putMarginText(eventName + cv::format(": %d", int(lights.size())), currentColor, thickness);
@@ -463,35 +462,6 @@ class ImageShowClient : ImageShowBase {
         cv::String carType = target.type == TARGET_SMALL ? "small" : "large";
         cv::putText(m_frame, carType, target.pixelPts2f.tl + cv::Point2f(12, 12),
             cv::FONT_HERSHEY_PLAIN, s_fontSize, currentColor);
-        m_putMarginText(eventName, currentColor, thickness);
-    }
-
-    /**
-     * 绘制预测目标
-     * @param eventName 事件名, 显示在左上角
-     * @param targets 绘制对象
-     */
-    void addPredictTarget(const cv::String &eventName, const Target &target) {
-        if (s_mode == 0)
-            return;
-        cv::Scalar currentColor = m_getCurrentColor();
-        int thickness = 1;
-        cv::Mat ptsInCamera_Predict_Mat = (cv::Mat_<double>(3, 1)
-                                               << target.ptsInGimbal_Predict.x,
-            target.ptsInGimbal_Predict.y, target.ptsInGimbal_Predict.z);
-        cv::Mat ptsInArmor_Predict_Mat = target.rvMat.inv() * (ptsInCamera_Predict_Mat - target.tv);
-
-        std::vector<cv::Point3f> objpt = {cv::Point3f(ptsInArmor_Predict_Mat.at<double>(0, 0),
-            ptsInArmor_Predict_Mat.at<double>(1, 0),
-            ptsInArmor_Predict_Mat.at<double>(2, 0) - 150)};
-        std::vector<cv::Point2f> imgpt;
-        cv::projectPoints(objpt, target.rv, target.tv, stCamera.camMat, stCamera.distCoeffs, imgpt);
-        int length = 300;
-        cv::Point2f offset = cv::Point2f(stFrameInfo.offset);
-        cv::line(m_frame, imgpt[0] - cv::Point2f(0, length) - offset,
-            imgpt[0] + cv::Point2f(0, length) - offset, currentColor,
-            thickness);
-
         m_putMarginText(eventName, currentColor, thickness);
     }
 
@@ -739,6 +709,8 @@ class ImageShowServer : ImageShowBase {
      * 进行图像显示
      */
     void mainloop() {
+        using namespace std::chrono_literals;
+
         if (s_mode == 0) {
             PRINT_INFO("[is Server] mode = 0 quit\n");
             return;

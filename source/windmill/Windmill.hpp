@@ -311,12 +311,12 @@ namespace wm
                         int inner_long = std::max(Armor.size.width, Armor.size.height);
                         int inner_short = std::min(Armor.size.width, Armor.size.height);
 
-                        cout << "outer_long-outer_short-inner_long-inner_short: " << outer_long << " " << outer_short << " " << inner_long << " " << inner_short << endl;
+                        std::cout << "outer_long-outer_short-inner_long-inner_short: " << outer_long << " " << outer_short << " " << inner_long << " " << inner_short << std::endl;
                         
                         if (abs(inner_long - outer_short) / double(outer_short) < 0.5 
                           && double(inner_long) / inner_short < 3) {
                             
-                            cout << "outer_long-outer_short-inner_long-inner_short: " << outer_long << " " << outer_short << " " << inner_long << " " << inner_short << endl;
+                            std::cout << "outer_long-outer_short-inner_long-inner_short: " << outer_long << " " << outer_short << " " << inner_long << " " << inner_short << std::endl;
                             
                             break;
                         }
