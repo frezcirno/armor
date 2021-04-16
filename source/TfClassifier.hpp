@@ -180,7 +180,7 @@ class TfClassifier {
                 auto output_c = outputs[0].scalar<float>();
                 float result = output_c();
                 /* 判断正负样本 */
-                if (0.3 <= result) {
+                if (0 <= result) {
                     targets.emplace_back(_tar);
                 }
                 /* 储存图 */
