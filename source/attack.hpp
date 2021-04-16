@@ -147,9 +147,14 @@ class Attack : AttackBase {
                 PRINT_INFO("++++++++++++++++ 找到上一次目标 ++++++++++++++++++++\n");
                 auto closestTarget = std::min_element(m_targets.begin(), m_targets.end(), [&](const Target &a, const Target &b) {
                     return distance(*trackElem, a) < distance(*trackElem, b);
-                });  // (一定存在)
-                s_historyTargets.emplace_front(*closestTarget);
-                return SEND_STATUS_AUTO_AIM;  //瞄准
+                });
+                if (closestTarget != m_targets.end()) {
+                    s_historyTargets.emplace_front(*closestTarget);
+                    return SEND_STATUS_AUTO_AIM;  //瞄准
+                } else {
+                    s_historyTargets.emplace_front(s_historyTargets.front());
+                    return SEND_STATUS_AUTO_AIM;  //瞄准上一帧
+                }
             } else {
                 PRINT_INFO("++++++++++++++++ 没找到上一次目标, 按上一次的来 ++++++++++++++++++++\n");
                 return SEND_STATUS_AUTO_AIM_FORMER;  //瞄准上一帧
