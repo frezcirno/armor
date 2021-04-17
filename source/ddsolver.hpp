@@ -28,7 +28,7 @@ class DDSolver {
      */
     bool pitchNaive(float bulletSpeed, float x, float y, float &pitch_) {
         float iterY = y;
-        float delta, lastDelta = 0x3f3f3f3f;
+        float delta = 0x3f3f3f3f, lastDelta;
         float alpha = 1;
         int t = 0;
         do {
@@ -62,7 +62,7 @@ class DDSolver {
         using namespace std;
 
         float iterY = y;
-        float delta, lastDelta = 0x3f3f3f3f;
+        float delta = 0x3f3f3f3f, lastDelta;
         float alpha = 1;
         int t = 0;
         // PRINT_INFO("\n\n\n");
