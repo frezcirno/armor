@@ -9,6 +9,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
+#include "DebugSocket.hpp"
 #include "base.hpp"
 #include "semaphore.hpp"
 #include "sort/sort.h"
@@ -558,6 +559,7 @@ class ImageShowServer : ImageShowBase {
     std::vector<ImageShowClient> m_clients;
 
     bool m_layoutRestFlag = true;
+    DebugSocket ds;
 
     struct WinProps {
         cv::Point2i offset = cv::Point2i(0, 0);
@@ -736,6 +738,7 @@ class ImageShowServer : ImageShowBase {
                     }
                     /* 显示主图 */
                     cv::imshow("main", s_frameVec[id].second);
+                    ds.sendFrame(s_frameVec[id].second);
                     for (auto &_img : s_imgVec[id]) {
                         if (_img.isUpdated) {
                             _img.isUpdated = false;
