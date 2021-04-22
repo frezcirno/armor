@@ -8,3 +8,5 @@ tensorflow/
 include/opencv2/
 daemon/config.pkl
 daemon/log.txt
+
+.venv
