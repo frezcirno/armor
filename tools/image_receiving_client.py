@@ -17,8 +17,8 @@ _packing_format = '!L'
 _default_server = socket.gethostbyname(socket.gethostname())
 # default port if not specified
 _default_port = 8080
-# message of the request to receive a frame
-_request_message = '!FrameRequest'
+# message for frame request
+_frame_request_message = '!FrameRequest'
 # message for disconnection
 _disconnection_message = '!Disconnect'
 _encoding = 'utf-8'
@@ -37,6 +37,9 @@ def parsed_args():
 
     return args
 
+def pack(string):
+    bytes = string.encode(_encoding)
+    return struct.pack(_packing_format, len(bytes)) + bytes
 
 def main():
     args = parsed_args()
@@ -45,9 +48,13 @@ def main():
     server_address = (args.server, args.port)
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(server_address)
+    print(f'Successfully connected to {server_address}')
 
     while True:
-        client_socket.send(_request_message.encode(_encoding))
+        # send frame request to the server
+        packed_frame_request = pack(_frame_request_message)
+        client_socket.send(packed_frame_request)
+        print(f'Frame request sent: {len(packed_frame_request)}B')
 
         # STEP1: decode the header
         # get the size of the header
@@ -57,13 +64,16 @@ def main():
         packed_header = b''
         while len(packed_header) < header_size:
             packed_header += client_socket.recv(_buffer_size)
+            print(f'Received {len(packed_header)}B of HEADER')
         packed_header = packed_header[:header_size]
         
-        # STEP2: decode the frame data, which is an opencv image to be displayed
         # unpack the header to get the image frame size
         # refer to the comment at the starting lines if you're puzzled
         frame_size = struct.unpack(_packing_format, packed_header)[0]
+        print(f'Received HEADER: {frame_size}')
         
+        # STEP2: decode the frame data, which is an opencv image to be displayed
+
         # receive the frame data
         packed_frame = b''
         while len(packed_frame) < frame_size:
@@ -76,37 +86,11 @@ def main():
         # show the image
         cv.imshow('RoboMaster', frame)
         cv.waitKey(1)
+    
+    # disconnect from the server
+    packed_disconnection = pack(_disconnection_message)
+    client_socket.send(packed_disconnection)
+    print(f'Disconnection request sent: {len(packed_disconnection)}B')
 
 if __name__ == '__main__':
     main()
-    # address = ('localhost', 8880)
-
-    # server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    # server.bind(address)
-    # print('Bind UDP on 8880...')
-
-    # # 按照格式打包发送帧数和分辨率
-    # while True:
-    #     data, addr = server.recvfrom(4)
-    #     print('Received from %s:%s.' % addr)
-    #     size = int.from_bytes(data, sys.byteorder)
-    #     print(f'size {size}')
-    #     if size:
-    #         try:
-    #             buf = b""  # 代表bytes类型
-    #             while size:  # 读取每一张图片的长度
-    #                 data, addr = server.recvfrom(4096)
-    #                 size -= len(data)
-    #                 buf += data  # 获取图片
-    #                 print(f'read {len(data)}')
-    #             mat = numpy.fromstring(buf, dtype='uint8')
-    #             image = cv.imdecode(mat, 1)  # 图像解码
-    #             cv.imshow('image', image)  # 展示图片
-    #         except:
-    #             pass
-    #         finally:
-    #             if(cv.waitKey(0) == 27):  # 每10ms刷新一次图片，按‘ESC’（27）退出
-    #                 server.close()
-    #                 cv.destroyAllWindows()
-    #                 break
