@@ -4,6 +4,9 @@ import argparse
 import numpy as np
 import threading
 
+# see server_glue.py for more details
+from server_glue import frame_provider
+
 # ref to `struct`: https://docs.python.org/3/library/struct.html
 import struct
 
@@ -39,7 +42,6 @@ def parsed_args():
     return args
 
 def handle_client(client_socket):
-    camera = cv.VideoCapture(0)
     while True:
         # STEP1: decode the header
         # get the size of the header
@@ -72,13 +74,14 @@ def handle_client(client_socket):
         if message == _disconnection_message:
             break
         elif message == _frame_request_message:
-            frame = camera.read()[1]
+            frame = frame_provider.get_current_frame()
+            print(frame)
+            # pack the frame in binary format
             packed_frame = cv.imencode('.jpg', frame)[1].tobytes()
             # the header which specifies the size of the frame
             packed_header = struct.pack(_packing_format, len(packed_frame))
             client_socket.send(packed_header + packed_frame)
             print(f'Image sent: {len(packed_header) + len(packed_frame)}B')
-
 
     client_socket.close()
 
