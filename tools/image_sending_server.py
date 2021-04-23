@@ -39,6 +39,7 @@ def parsed_args():
     return args
 
 def handle_client(client_socket):
+    camera = cv.VideoCapture(0)
     while True:
         # STEP1: decode the header
         # get the size of the header
@@ -49,6 +50,7 @@ def handle_client(client_socket):
         while len(packed_header) < header_size:
             packed_header += client_socket.recv(_buffer_size)
             print(f'Received {len(packed_header)}B of HEADER')
+        remaining_bytes = packed_header[header_size:]
         packed_header = packed_header[:header_size]
 
         # unpack the header to get the image frame size
@@ -57,18 +59,26 @@ def handle_client(client_socket):
         print(f'Received HEADER: {message_size}')
 
         # STEP2: check the message
-        packed_message = b''
+        packed_message = remaining_bytes
         while len(packed_message) < message_size:
             packed_message += client_socket.recv(_buffer_size)
+            print(f'Received {len(packed_message)}B of HEADER')
         packed_message = packed_message[:message_size]
         # unpack to get the message
         message = packed_message.decode(_encoding)
+        print(f"New message '{message}' received")
 
         # STEP3: perform different logics according to the message
         if message == _disconnection_message:
             break
         elif message == _frame_request_message:
-            break
+            frame = camera.read()[1]
+            packed_frame = cv.imencode('.jpg', frame)[1].tobytes()
+            # the header which specifies the size of the frame
+            packed_header = struct.pack(_packing_format, len(packed_frame))
+            client_socket.send(packed_header + packed_frame)
+            print(f'Image sent: {len(packed_header) + len(packed_frame)}B')
+
 
     client_socket.close()
 

@@ -65,6 +65,7 @@ def main():
         while len(packed_header) < header_size:
             packed_header += client_socket.recv(_buffer_size)
             print(f'Received {len(packed_header)}B of HEADER')
+        remaining_bytes = packed_header[header_size:]
         packed_header = packed_header[:header_size]
         
         # unpack the header to get the image frame size
@@ -75,16 +76,18 @@ def main():
         # STEP2: decode the frame data, which is an opencv image to be displayed
 
         # receive the frame data
-        packed_frame = b''
+        packed_frame = remaining_bytes
         while len(packed_frame) < frame_size:
             packed_frame += client_socket.recv(_buffer_size)
+            print(f'Received {len(packed_frame)}B of HEADER')
         packed_frame = packed_frame[:frame_size]
+        print('A new frame received!')
 
         # decode the image from bytes
-        frame = cv.imdecode(np.frombuffer(packed_frame), cv.IMREAD_COLOR)
+        frame = cv.imdecode(np.frombuffer(packed_frame, np.uint8), cv.IMREAD_COLOR)
 
         # show the image
-        cv.imshow('RoboMaster', frame)
+        cv.imshow('RoboMaster Client', frame)
         cv.waitKey(1)
     
     # disconnect from the server
