@@ -5,9 +5,13 @@ cmake-build-debug/
 
 # 太大了, 不放在仓库里面, 自行下载
 tensorflow/
+
 include/opencv2/
 daemon/config.pkl
 daemon/log.txt
 
 .venv
 __pycache__
+
+data/raw/
+data/video/auto
