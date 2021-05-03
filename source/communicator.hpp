@@ -51,6 +51,8 @@ class Communicator {
         float yaw = 0.0;
         float pitch = 0.0;
         float speed = 0.0;
+        unsigned char state = 0;
+        unsigned short time = 0;
         uint8_t extra[2] = {0, 0};  // additional imformation
         uint8_t crc8check = 0;
         uint8_t end = 0xf2;
@@ -290,7 +292,8 @@ class CommunicatorSerial : public Communicator {
                 if (size_temp > 0) {
                     /* 读值 */
                     std::vector<uint8_t> buffer_tmp;
-                    m_ser.read(buffer_tmp, size_temp);
+                    size_t readed = m_ser.read(buffer_tmp, size_temp);
+                    PRINT_INFO("[serial] read %d\n", readed);
                     buffer.insert(buffer.end(), buffer_tmp.begin(), buffer_tmp.end());
                     /* 校验 */
                     while (buffer.size() >= m_frameSize) {

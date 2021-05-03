@@ -29,7 +29,7 @@ int main() {
     Capture *cap = nullptr;
 
     if (stConfig.get<bool>("cap.is-video")) {  //打开视频或者垃圾摄像头
-        cap = new LajiVision();
+        cap = new LajiVision(); 
     } else {
 #ifdef MINDVISION
         cap = new MindVision();
