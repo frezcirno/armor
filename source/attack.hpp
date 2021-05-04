@@ -20,6 +20,7 @@
 #include "pid.hpp"
 #include "sort/sort.h"
 #include "target.hpp"
+#include "RoundQueue.h" 
 
 const unsigned int max_age = 10;
 const unsigned int min_hits = 1;
@@ -35,9 +36,26 @@ class AttackBase {
     static std::deque<Target> s_historyTargets;     // 打击历史, 最新的在头部, [0, 1, 2, 3, ....]
     static ArmorFinder s_armorFinder;
     static TfClassifier s_tfClassifier;
+
+    Target target_box, last_box;                      // 目标装甲板
+    double last_front_time;
+    RoundQueue<double, 4> top_periodms;                 // 陀螺周期循环队列
+    vector<float> time_seq;                           // 一个周期内的时间采样点
+    vector<float> angle_seq;                            // 一个周期内的角度采样点
+    int anti_top_cnt = 0;                                   // 检测到是的小陀螺次数
     static Kalman kalman;                              // 卡尔曼滤波
     static std::unique_ptr<sort::SORT> s_sortTracker;  // DeepSORT 跟踪
     static size_t s_trackId;                           // DeepSORT 跟踪对象Id
+
+    /**
+     * 反小陀螺
+     */
+    void antitop(float& delay_time);
+
+    /**
+     * 判断对手是否开启小陀螺
+     */
+    bool is_antitop();
 };
 /* 类静态成员初始化 */
 std::mutex AttackBase::s_mutex;
@@ -278,6 +296,7 @@ class Attack : AttackBase {
                 m_is.addText(cv::format("finalPitch %4f", finalPitch));
                 rYaw = s_historyTargets[0].rYaw;
                 rPitch = s_historyTargets[0].rPitch;
+                target_box = s_historyTargets[0];
 
                 /* 6.预测部分 */
                 if (m_isEnablePredict) {
@@ -336,9 +355,19 @@ class Attack : AttackBase {
             m_is.addText(cv::format("rPitch %.3f", rPitch));
             m_is.addText(cv::format("rYaw   %.3f", rYaw));
             m_is.addText(cv::format("statusA   %.3x", statusA));
-
+            float delay_time  //延迟射击的时间
+            if(is_antitop()){
+                antitop(delay_time);
+            }else{
+                anti_top_cnt = 0;
+                time_seq.clear();
+                angle_seq.clear();
+                delay_time = 0;
+            }
+            last_box = target_box; 
+            m_is.addText(cv::format("delay_time   %.3f", delay_time)); 
             /* 9.发给电控 */
-            m_communicator.send(rYaw, -rPitch, statusA, SEND_STATUS_WM_PLACEHOLDER);
+            m_communicator.send(rYaw, -rPitch, delay_time, statusA, SEND_STATUS_WM_PLACEHOLDER);
             PRINT_INFO("[attack] send = %ld", timeStamp);
         }
         if (preLock.owns_lock())
