@@ -92,12 +92,12 @@ namespace wm
     // 此函数用于改变hsv阈值
     void set_hsv(int &LowH, int &LowS, int &LowV, int &HighH, int &HighS, int &HighV)
     {
-        LowH = 0;
-        LowS = 20;
-        LowV = 250;
+        LowH = 100;
+        LowS = 100;
+        LowV = 90;
 
-        HighH = 80;
-        HighS = 80;
+        HighH = 200;
+        HighS = 255;
         HighV = 255;
     };
     // 此函数用于绘制旋转矩形
@@ -213,27 +213,29 @@ namespace wm
 
                 Rrect = cv::fitEllipse(contours[i]);
                 is->addText(cv::format("windmill-fan-size: %f", Rrect.size.area()));
-                if (Rrect.size.area() > 1000 && Rrect.size.area() < 2000 && Rrect.size.height / Rrect.size.width < 1.4)//筛选中心发光R
+                if (Rrect.size.area() > 200 && Rrect.size.area() < 1000 && Rrect.size.height / Rrect.size.width < 1.4)//筛选中心发光R
                 {
                     is->addText("find center!");
+                   
                     std::vector<cv::RotatedRect> Rrect_list1;
                     Rrect_list1.push_back(Rrect);
                     is->addRotatedRects("find center!", Rrect_list1);
                     draw_rotated(frame, Rrect, cv::Scalar(0, 255, 255));//draw
                     is->addText(cv::format("windmill-center-size: %f", Rrect.size.area()));
+                    std::cout << "*******************" << Rrect.size.area() << "**************" <<std:: endl;
                     center = Rrect.center;
                 } //找到风车的中心
 
-                if (Rrect.size.area() < 2000 || Rrect.size.area() > 60000)
+                if (Rrect.size.area() < 200 || Rrect.size.area() > 60000)
                     continue;
 
                 if (Rrect.size.height > frame.rows || Rrect.size.width > frame.cols)
                     continue;
                 
-                draw_rotated(frame, Rrect);//draw
+                //draw_rotated(frame, Rrect);//draw
                 std::vector<cv::RotatedRect> Rrect_list2;
                 Rrect_list2.push_back(Rrect);
-                is->addRotatedRects("windmill-fan", Rrect_list2);
+               // is->addRotatedRects("windmill-fan", Rrect_list2);
                 indexs.push_back(i);
             }
         
@@ -322,10 +324,10 @@ namespace wm
                         }
                     }
                         
-                    draw_rotated(frame, Armor, cv::Scalar(255, 255, 0));//draw
+                   // draw_rotated(frame, Armor, cv::Scalar(255, 255, 0));//draw
                     std::vector<cv::RotatedRect> Rrect_list3;
                     Rrect_list3.push_back(Armor);
-                    is->addRotatedRects("windmill-armor", Rrect_list3);
+                    //is->addRotatedRects("windmill-armor", Rrect_list3);
 
                     dis = sqrt((Armor.center.x - center.x) * (Armor.center.x - center.x) + 
                                      (Armor.center.y - center.y) * (Armor.center.y - center.y));
@@ -376,16 +378,17 @@ namespace wm
                     } 
                     else {
                         isFind = false;
+
                         final.push_back(temp[0]);
                         final.push_back(temp[0]);
                         final.push_back(temp[0]);
                         final.push_back(temp[0]);
                     }
 
-                    cv::circle(frame, final[0], 10, {0, 255, 0});
-                    cv::circle(frame, final[1], 20, {0, 255, 0});
-                    cv::circle(frame, final[2], 30, {0, 255, 0});
-                    cv::circle(frame, final[3], 40, {0, 255, 0}); //点位判断
+                    //cv::circle(frame, final[0], 10, {0, 255, 0});
+                    //cv::circle(frame, final[1], 20, {0, 255, 0});
+                    //cv::circle(frame, final[2], 30, {0, 255, 0});
+                   // cv::circle(frame, final[3], 40, {0, 255, 0}); //点位判断
                     findedTarget.vertexs = final;
                 }
             }
