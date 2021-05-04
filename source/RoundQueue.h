@@ -1,12 +1,15 @@
+#pragma once
+
 // 循环队列
-template<class type, int length>
+template <class type, int length>
 class RoundQueue {
-private:
+  private:
     type data[length];
     int head;
     int tail;
-public:
-    RoundQueue<type, length>() : head(0), tail(0) {};
+
+  public:
+    RoundQueue<type, length>() : head(0), tail(0){};
 
     constexpr int size() const {
         return length;
@@ -32,7 +35,8 @@ public:
     };
 
     type &operator[](int idx) {
-        while (tail + idx < 0) idx += length;
+        while (tail + idx < 0)
+            idx += length;
         return data[(tail + idx) % length];
     };
 };

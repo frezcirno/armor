@@ -9,8 +9,10 @@
 #include <numeric>
 #include <thread>
 #include <utility>
+#include <vector>
 
 #include "ArmorFinder.hpp"
+#include "RoundQueue.h"
 #include "TfClassifier.hpp"
 #include "base.hpp"
 #include "capture/capture.hpp"
@@ -20,7 +22,6 @@
 #include "pid.hpp"
 #include "sort/sort.h"
 #include "target.hpp"
-#include "RoundQueue.h" 
 
 const unsigned int max_age = 10;
 const unsigned int min_hits = 1;
@@ -37,20 +38,15 @@ class AttackBase {
     static ArmorFinder s_armorFinder;
     static TfClassifier s_tfClassifier;
 
-    Target target_box, last_box;                      // 目标装甲板
+    Target target_box, last_box;  // 目标装甲板
     double last_front_time;
-    RoundQueue<double, 4> top_periodms;                 // 陀螺周期循环队列
-    vector<float> time_seq;                           // 一个周期内的时间采样点
-    vector<float> angle_seq;                            // 一个周期内的角度采样点
-    int anti_top_cnt = 0;                                   // 检测到是的小陀螺次数
+    RoundQueue<double, 4> top_periodms;                // 陀螺周期循环队列
+    std::vector<float> time_seq;                       // 一个周期内的时间采样点
+    std::vector<float> angle_seq;                      // 一个周期内的角度采样点
+    int anti_top_cnt = 0;                              // 检测到是的小陀螺次数
     static Kalman kalman;                              // 卡尔曼滤波
     static std::unique_ptr<sort::SORT> s_sortTracker;  // DeepSORT 跟踪
     static size_t s_trackId;                           // DeepSORT 跟踪对象Id
-
-    /**
-     * 反小陀螺
-     */
-    void antitop(float& delay_time);
 
     /**
      * 判断对手是否开启小陀螺
@@ -96,6 +92,63 @@ class Attack : AttackBase {
     void setMode(bool colorMode) { s_armorFinder.colorMode(colorMode); }
 
   private:
+    template <int length>
+    static double mean(RoundQueue<double, length> &vec) {
+        double sum = 0;
+        for (int i = 0; i < vec.size(); i++) {
+            sum += vec[i];
+        }
+        return sum / length;
+    }
+
+    static float getFrontTime(const std::vector<float> time_seq, const std::vector<float> angle_seq) {
+        float A = 0, B = 0, C = 0, D = 0;
+        int len = time_seq.size();
+        for (int i = 0; i < len; i++) {
+            A += angle_seq[i] * angle_seq[i];
+            B += angle_seq[i];
+            C += angle_seq[i] * time_seq[i];
+            D += time_seq[i];
+            std::cout << "(" << angle_seq[i] << ", " << time_seq[i] << ") ";
+        }
+        float b = (A * D - B * C) / (len * A - B * B);
+        std::cout << b << std::endl;
+        return b;
+    }
+
+    void antitop(float &delay_time) {
+        // 判断是否发生装甲目标切换。
+        // 记录切换前一段时间目标装甲的角度和时间
+        // 通过线性拟合计算出角度为0时对应的时间点
+        // 通过两次装甲角度front_time为零的时间差计算陀螺旋转周期
+        // 根据旋转周期计算下一次装甲出现在角度为零的时间点
+
+        float width = 0.0;
+        if (target_box.type == TARGET_SMALL)
+            width = 135;
+        else
+            width = 230;
+
+        if (cv::norm(last_box.pixelCenterPt2f - target_box.pixelCenterPt2f) > width * 1.5) {
+            auto front_time = getFrontTime(time_seq, angle_seq);
+            auto once_periodms = front_time - last_front_time;
+            top_periodms.push(once_periodms);
+            auto periodms = mean(top_periodms);
+
+            float shoot_delay = front_time + periodms * 2 - double(m_currentTimeStamp / 1000);  //单位可能要改
+            if (anti_top_cnt >= 4 && abs(once_periodms - top_periodms[-1]) <= 50) {
+                delay_time = shoot_delay;
+            }
+            time_seq.clear();
+            angle_seq.clear();
+            last_front_time = front_time;
+        } else {
+            time_seq.emplace_back(m_currentTimeStamp);
+            angle_seq.emplace_back(target_box.rYaw);
+        }
+        anti_top_cnt++;
+    }
+
     /**
      * Get the distance between a sort::Track and a Target
      */
@@ -240,6 +293,7 @@ class Attack : AttackBase {
         m_targets.clear();
         m_preTargets.clear();
         m_startPt = cv::Point();
+        float delay_time = 0.0;  //延迟射击的时间
 
         /* 如果有历史打击对象 */
         if (s_historyTargets.size() >= 2 && s_historyTargets[0].rTick <= 10) {
@@ -322,7 +376,24 @@ class Attack : AttackBase {
                     }
                 }
 
-                /** 7.射击策略
+                /* 7.反小陀螺 */
+                if (s_historyTargets.size() >= 2) {
+                    target_box = s_historyTargets[0];
+                    last_box = s_historyTargets[0];
+
+                    //is_antitop()
+                    if (1) {
+                        antitop(delay_time);
+                    } else {
+                        anti_top_cnt = 0;
+                        time_seq.clear();
+                        angle_seq.clear();
+                        delay_time = 0;
+                    }
+                    m_is.addText(cv::format("delay_time   %.3f", delay_time));
+                }
+
+                /** 8.射击策略
                  * 目标被识别3帧以上才打
                  */
                 if (s_historyTargets.size() >= 3)
@@ -355,17 +426,7 @@ class Attack : AttackBase {
             m_is.addText(cv::format("rPitch %.3f", rPitch));
             m_is.addText(cv::format("rYaw   %.3f", rYaw));
             m_is.addText(cv::format("statusA   %.3x", statusA));
-            float delay_time  //延迟射击的时间
-            if(is_antitop()){
-                antitop(delay_time);
-            }else{
-                anti_top_cnt = 0;
-                time_seq.clear();
-                angle_seq.clear();
-                delay_time = 0;
-            }
-            last_box = target_box; 
-            m_is.addText(cv::format("delay_time   %.3f", delay_time)); 
+
             /* 9.发给电控 */
             m_communicator.send(rYaw, -rPitch, delay_time, statusA, SEND_STATUS_WM_PLACEHOLDER);
             PRINT_INFO("[attack] send = %ld", timeStamp);

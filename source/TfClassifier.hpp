@@ -1,5 +1,9 @@
 #pragma once
 
+#include <opencv2/opencv.hpp>
+#include <vector>
+#include <imageshow.hpp>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #include "google/protobuf/wrappers.pb.h"
@@ -78,9 +82,9 @@ class TfClassifier {
             return false;
         /* 调整大小 同比缩放至fixedsize*fixedsize以内 */
         if (img.cols < img.rows)
-            resize(img, img, {int(img.cols * 1.0 / img.rows * fixedSize), fixedSize});
+            cv::resize(img, img, {int(img.cols * 1.0 / img.rows * fixedSize), fixedSize});
         else
-            resize(img, img, {fixedSize, int(img.rows * 1.0 / img.cols * fixedSize)});
+            cv::resize(img, img, {fixedSize, int(img.rows * 1.0 / img.cols * fixedSize)});
         /* 剪去边上多余部分 */
         int cutRatio1 = 0.15 * img.cols;
         int cutRatio2 = 0.05 * img.rows;

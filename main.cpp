@@ -29,7 +29,7 @@ int main() {
     Capture *cap = nullptr;
 
     if (stConfig.get<bool>("cap.is-video")) {  //打开视频或者垃圾摄像头
-        cap = new LajiVision(); 
+        cap = new LajiVision();
     } else {
 #ifdef MINDVISION
         cap = new MindVision();
@@ -104,11 +104,13 @@ int main() {
                 if (cap->wait_and_get(frame, timeStamp, [&communicator, &gYaw, &gPitch]() {
                         communicator.getGlobalAngle(&gYaw, &gPitch);
                     })) {
+                    // cv::rotate(frame, frame, cv::ROTATE_180);
+                    // cv::imwrite("1.png",frame);
                     /* 刷新主线程窗口图像 */
                     isClient.update(frame, int(timeStamp / 1000));
                     isClient.addText(cv::format("size %d x %d", stFrameInfo.size.width, stFrameInfo.size.height));
                     isClient.addText(cv::format("ts %ld", timeStamp));
-                    isClient.addText(cv::format("fps %3d", int(1000000000 / cap->getCurrentInterval()))); // TODO: 大华相机和MindVision返回的值单位不同
+                    isClient.addText(cv::format("fps %3d", int(1000000000 / cap->getCurrentInterval())));  // TODO: 大华相机和MindVision返回的值单位不同
                     isClient.addText(cv::format("send %2.2f ms", communicator.getCurrentInterval() / 1000.0));
 
                     isClient.clock("run");
@@ -162,12 +164,12 @@ int main() {
                             }
 
                             if (pWindMill->run(frame, pitch, yaw, (double)cv::getTickCount())) {  //有目标，运行风车击打
-                                communicator.send(0.0, 0.0, SEND_STATUS_WM_AIM, SEND_STATUS_WM_FIND);
+                                communicator.send(0.0, 0.0, 0.0, SEND_STATUS_WM_AIM, SEND_STATUS_WM_FIND);
                                 isClient.addText(cv::format("send pitch:%0.2f", pitch));
                                 isClient.addText(cv::format("send yaw:%0.2f", yaw));
 
                             } else {  //无目标
-                                communicator.send(0.0, 0.0,
+                                communicator.send(0.0, 0.0, 0.0,
                                     SEND_STATUS_WM_AIM, SEND_STATUS_WM_NO);
                                 PRINT_WARN("[windmill] no target find\n");
                             }
@@ -188,7 +190,6 @@ int main() {
                     std::cout << "@@@@@@@@@@@@@@@ " << cost << " ms\n";
                     std::cout << "@@@@@@@@@@@@@@@ NOW MAX -> " << now_max << " ms\n";
                     isClient.clock("run");
-
                 } else {
                     PRINT_ERROR("capture wait_and_get() failed once\n");
                 }
