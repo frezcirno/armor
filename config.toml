@@ -3,13 +3,14 @@
     attack-color = 'red' # 击打颜色, ['red', 'blue']
 
 [communicator]
-    enable = true
-    serial-port = '/dev/USBsp0'
+    enable = false
+    serial-port = '/dev/ttyUSB0'
 
 [isServer]
     mode = 2   # 0-不启动ISServer 1-? 2-?
 
 [cap]
+    rotate = 0         # 读入图像旋转角度（顺时针），适配摄像头装反的情况，取值：0|90|180|270
     is-video = false   # true为打开视频或垃圾摄像头, false为打开摄像头
     video-path ="../video/全国赛part3.avi"   #视频路径或垃圾摄像头路径
     # 录视频
