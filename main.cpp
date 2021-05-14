@@ -10,6 +10,8 @@
 #include <windmill/Windmill.hpp>
 
 int main() {
+    using namespace std::chrono_literals;
+
     std::cout << "[General] Using OpenCV " << CV_VERSION << std::endl;
 
     int threadNum = stConfig.get<int>("auto.thread-num");  //线程数初始化
@@ -206,7 +208,7 @@ int main() {
                 }
 
                 while (isServer.isPause()) {
-                    thread_sleep_us(5);
+                    std::this_thread::sleep_for(5us);
                 }
             }
             PRINT_INFO("attackThreads %d quit \n", i);

@@ -2,6 +2,7 @@
 
 #include "semaphore.hpp"
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <opencv2/opencv.hpp>
 
@@ -32,7 +33,9 @@ class Capture {
     cv::VideoWriter m_writer;
     bool m_isEnableRecord;
     std::thread m_recordThread;
-    Semaphore m_semaphore;
+    std::atomic_bool m_record;
+    std::condition_variable m_cond;
+    std::mutex m_recordLock;
     cv::Mat m_recordFrame;
 
     /**

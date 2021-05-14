@@ -12,17 +12,6 @@
 #include <mutex>
 #include <thread>
 
-void thread_sleep_ms(long ms) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-}
-
-void thread_sleep_s(long s) {
-    std::this_thread::sleep_for(std::chrono::seconds(s));
-}
-
-void thread_sleep_us(long us) {
-    std::this_thread::sleep_for(std::chrono::microseconds(us));
-}
 
 class Semaphore {
   private:
@@ -43,10 +32,7 @@ class Semaphore {
     template <typename _Rep, typename _Period>
     bool wait_for(const std::chrono::duration<_Rep, _Period> &timeout, const std::function<void()> &func) {
         std::unique_lock<std::mutex> lock(mutex);
-        if (m_condVar.wait_for(lock, timeout,
-                [&]() -> bool {
-                    return m_isWakeUp.load() || m_isWillExit.load();
-                })) {
+        if (m_condVar.wait_for(lock, timeout, [&] { return m_isWakeUp.load() || m_isWillExit.load(); })) {
             func();
             lock.unlock();
             m_isWakeUp.exchange(false);

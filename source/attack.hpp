@@ -283,6 +283,8 @@ class Attack : AttackBase {
      * @return true
      */
     bool run(cv::Mat &src, int64_t timeStamp, float gYaw, float gPitch) {
+        using namespace std::chrono_literals;
+
         m_is.addText(cv::format("gPitch %4f", gPitch));
         m_is.addText(cv::format("gYaw %4f", gYaw));
 
@@ -320,7 +322,7 @@ class Attack : AttackBase {
         /* 取得发送锁🔒 */
         std::unique_lock<std::mutex> preLock(s_mutex, std::try_to_lock);
         while (!preLock.owns_lock() && timeStamp > s_latestTimeStamp.load()) {
-            thread_sleep_us(5);
+            std::this_thread::sleep_for(5us);
             preLock.try_lock();
         }
 
