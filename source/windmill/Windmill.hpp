@@ -60,7 +60,7 @@ namespace wm
         double maxYawError = 0.0;  //最大yaw误差
         
         int thre;                  //二值化阈值
-        bool close;                //灰度图是否进行形态学闭运算
+        bool close = true;                //灰度图是否进行形态学闭运算
     //fuctions
         bool run(const cv::Mat &frame, float &pitch, float &yaw, double time);
         bool detect(const cv::Mat &frame);
@@ -93,11 +93,11 @@ namespace wm
     void set_hsv(int &LowH, int &LowS, int &LowV, int &HighH, int &HighS, int &HighV)
     {
         LowH = 100;
-        LowS = 100;
-        LowV = 90;
+        LowS = 0;
+        LowV = 220;//200//220
 
         HighH = 200;
-        HighS = 255;
+        HighS = 255;//255//236
         HighV = 255;
     };
     // 此函数用于绘制旋转矩形
@@ -183,7 +183,6 @@ namespace wm
         // 再次二值化
         cv::inRange(hsv, cv::Scalar(LowH, LowS, LowV), cv::Scalar(HighH, HighS, HighV), mask1);
         gray = mask0 + mask1;
-        is->addImg("gray", gray);
         
         // 是否进行形态学闭运算，用于连接分断点
         if (close) {
@@ -193,14 +192,16 @@ namespace wm
             cv::dilate(gray, gray, element1);                        //膨胀处理
             cv::morphologyEx(gray, gray, cv::MORPH_CLOSE, element2); //形态学闭运算
         }
-        is->addImg("close", gray);
 
         std::vector<cv::Vec4i> hierarchy;
         std::vector<int> indexs;    // 记录外层轮廓的索引
         std::vector<int> indexs2;   // 记录内层轮廓的索引  
         std::vector<std::vector<cv::Point> > contours;
         cv::findContours(gray, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
-
+        //std::vector<std::vector<cv::Point>> x;
+        //x.push_back(contours[0]);
+        //is->addContours("contours",x,cv::Point(0,0));
+        is->addText(cv::format("contourss: %u", contours.size()));
         cv::RotatedRect Rrect;   //扇叶
         cv::RotatedRect Armor;   //装甲板
         
@@ -212,30 +213,32 @@ namespace wm
                     continue; //椭圆拟合至少五个点
 
                 Rrect = cv::fitEllipse(contours[i]);
-                is->addText(cv::format("windmill-fan-size: %f", Rrect.size.area()));
-                if (Rrect.size.area() > 200 && Rrect.size.area() < 1000 && Rrect.size.height / Rrect.size.width < 1.4)//筛选中心发光R
-                {
-                    is->addText("find center!");
-                   
-                    std::vector<cv::RotatedRect> Rrect_list1;
-                    Rrect_list1.push_back(Rrect);
-                    is->addRotatedRects("find center!", Rrect_list1);
-                    draw_rotated(frame, Rrect, cv::Scalar(0, 255, 255));//draw
-                    is->addText(cv::format("windmill-center-size: %f", Rrect.size.area()));
-                    std::cout << "*******************" << Rrect.size.area() << "**************" <<std:: endl;
-                    center = Rrect.center;
-                } //找到风车的中心
 
-                if (Rrect.size.area() < 200 || Rrect.size.area() > 60000)
-                    continue;
+
+                // if (Rrect.size.area() < 800 || Rrect.size.area() > 60000)
+                //     continue;
 
                 if (Rrect.size.height > frame.rows || Rrect.size.width > frame.cols)
                     continue;
                 
-                //draw_rotated(frame, Rrect);//draw
+                //draw_rotated(frame, Rrect, cv::Scalar(255, 255, 255));//fan center yellow color
+                //is->addText(cv::format("windmill-fan-size: %f", Rrect.size.area()));
+
+                if (Rrect.size.area() > 200 && Rrect.size.area() < 2000 &&
+                    Rrect.size.height/Rrect.size.width<2&&Rrect.size.height/Rrect.size.width>1)//筛选中心发光R
+                {
+                    std::vector<cv::RotatedRect> Rrect_list1;
+                    Rrect_list1.push_back(Rrect);
+                    is->addRotatedRects("find center!", Rrect_list1);
+                    draw_rotated(frame, Rrect, cv::Scalar(255, 255, 0));//fan center yellow color
+                    is->addText(cv::format("find center! windmill-center-size: %f", Rrect.size.area()));
+                    std::cout << "*******************" << Rrect.size.area() << "**************" <<std:: endl;
+                    center = Rrect.center;
+                } //找到风车的中心
+
                 std::vector<cv::RotatedRect> Rrect_list2;
                 Rrect_list2.push_back(Rrect);
-               // is->addRotatedRects("windmill-fan", Rrect_list2);
+                //is->addRotatedRects("windmill-fan", Rrect_list2);
                 indexs.push_back(i);
             }
         
@@ -248,11 +251,16 @@ namespace wm
             for (int t = 0; t < indexs.size(); t++) {//遍历轮廓
                 int i = indexs[t];
 
-                if (contours[i].size() < 5)
-                    continue; //椭圆拟合至少五个点
-                Rrect = cv::fitEllipse(contours[i]);
+                // if (contours[i].size() < 5)
+                //     continue; //椭圆拟合至少五个点
+                //Rrect = cv::fitEllipse(contours[i]);
+                Rrect=cv::minAreaRect(contours[i]);
                 int outer_long = std::max(Rrect.size.width, Rrect.size.height);
                 int outer_short = std::min(Rrect.size.width, Rrect.size.height);
+
+                /*delet*/
+                if(outer_long/outer_short>1.2)
+                    draw_rotated(frame, Rrect, cv::Scalar(0, 0, 255));//draw fan red color 
 
                 cv::Point2f p[4], srcRect[4], dstRect[4];
                 Rrect.points(p);
@@ -306,31 +314,53 @@ namespace wm
                 if (index < 2)//索引小于2,说明是待击打旋转臂
                 {
                     int a_i = hierarchy[i][2];//子轮廓，找到装甲板
-                    for (int b_i = a_i; b_i >= 0; b_i = hierarchy[b_i][0]) {//筛选装甲板，通过长宽比和装甲板宽度和旋转臂宽度比较筛选
-                        if (contours[b_i].size() < 5)
-                            continue; //椭圆拟合至少五个点
-                        Armor = cv::fitEllipse(contours[b_i]);
+                    for (int b_i = a_i; b_i >= 0; b_i = hierarchy[b_i][0]) 
+                    {//筛选装甲板，通过长宽比和装甲板宽度和旋转臂宽度比较筛选
+                        // if (contours[b_i].size() < 5)
+                        //     continue; //椭圆拟合至少五个点
+
+                        // Armor = cv::fitEllipse(contours[b_i]);
+
+                        Armor=cv::minAreaRect(contours[b_i]);
+                        // if (Armor.size.area() > 5000)
+                        //     continue;
+
                         int inner_long = std::max(Armor.size.width, Armor.size.height);
                         int inner_short = std::min(Armor.size.width, Armor.size.height);
 
-                        std::cout << "outer_long-outer_short-inner_long-inner_short: " << outer_long << " " << outer_short << " " << inner_long << " " << inner_short << std::endl;
+                        //std::cout << "outer_long-outer_short-inner_long-inner_short: " << outer_long << " " << outer_short << " " << inner_long << " " << inner_short << std::endl;
                         
-                        if (abs(inner_long - outer_short) / double(outer_short) < 0.5 
-                          && double(inner_long) / inner_short < 3) {
+                        // if (abs(inner_long - outer_short) / double(outer_short) < 0.5 
+                        //   && double(inner_long) / inner_short < 3) {
                             
-                            std::cout << "outer_long-outer_short-inner_long-inner_short: " << outer_long << " " << outer_short << " " << inner_long << " " << inner_short << std::endl;
+                        //     std::cout << "outer_long-outer_short-inner_long-inner_short: " << outer_long 
+                        //     << " " << outer_short << " " 
+                        //     << inner_long << " " 
+                        //     << inner_short << std::endl;
                             
-                            break;
+                        //     break;
+                        // }
+                        if(Armor.size.area()>500)
+                        {
+                            draw_rotated(frame, Armor, cv::Scalar(0, 255, 0));//draw armor green color
+                            std::vector<cv::RotatedRect> Rrect_list3;
+                            Rrect_list3.push_back(Armor);
+                            is->addRotatedRects("windmill-armor", Rrect_list3);
+                            dis = sqrt((Armor.center.x - center.x) * (Armor.center.x - center.x) + 
+                                     (Armor.center.y - center.y) * (Armor.center.y - center.y));
                         }
                     }
-                        
-                   // draw_rotated(frame, Armor, cv::Scalar(255, 255, 0));//draw
-                    std::vector<cv::RotatedRect> Rrect_list3;
-                    Rrect_list3.push_back(Armor);
-                    //is->addRotatedRects("windmill-armor", Rrect_list3);
 
-                    dis = sqrt((Armor.center.x - center.x) * (Armor.center.x - center.x) + 
-                                     (Armor.center.y - center.y) * (Armor.center.y - center.y));
+                    // if (Armor.size.area() > 1000)
+                    // {
+                    //     draw_rotated(frame, Armor, cv::Scalar(0, 255, 0));//draw armor green color
+                    //     std::vector<cv::RotatedRect> Rrect_list3;
+                    //     Rrect_list3.push_back(Armor);
+                    //     is->addRotatedRects("windmill-armor", Rrect_list3);
+                    // }
+
+                    // dis = sqrt((Armor.center.x - center.x) * (Armor.center.x - center.x) + 
+                    //                  (Armor.center.y - center.y) * (Armor.center.y - center.y));
 
                     this->radius = dis;//给半径赋值
 
@@ -384,16 +414,18 @@ namespace wm
                         final.push_back(temp[0]);
                         final.push_back(temp[0]);
                     }
+                    cv::circle(frame, center, dis, {255,0,0});//center point blue color
 
-                    //cv::circle(frame, final[0], 10, {0, 255, 0});
-                    //cv::circle(frame, final[1], 20, {0, 255, 0});
-                    //cv::circle(frame, final[2], 30, {0, 255, 0});
-                   // cv::circle(frame, final[3], 40, {0, 255, 0}); //点位判断
+                    // cv::circle(frame, final[0], 10, {0, 255, 0});
+                    // cv::circle(frame, final[1], 20, {0, 255, 0});
+                    // cv::circle(frame, final[2], 30, {0, 255, 0});
+                    // cv::circle(frame, final[3], 40, {0, 255, 0}); //点位判断
                     findedTarget.vertexs = final;
                 }
             }
         
         is->addImg("frame", frame, true);
+        is->addImg("gray",gray,true);
         return isFind;
     };
 
@@ -452,9 +484,6 @@ namespace wm
         coodiTrans(hitTarget.lPt, hitTarget.lPt, eye, this->TvCtoL);
         //计算打击目标点的pitch和yaw角度
         calPitchYaw(hitTarget.lPt, pitch, yaw);
-        
-        is->addText(cv::format("pitch: %0.2f", pitch));
-        is->addText(cv::format("yaw: %0.2f", yaw));
         
         if (delay > 0) {//顺时针旋转
             //pitch -= maxPitchError * cos(spinAngle / 180.0 * M_PI);
