@@ -51,7 +51,7 @@ class ArmorFinder {
         if (_useDialte) {
             cv::Mat element = getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
             dilate(bgrChecked, bgrChecked, element);
-            // m_is.addImg("dilate", bgrChecked, false);
+            m_is.addImg("dilate", bgrChecked, false);
         }
 
         /* 寻找边缘，并圈出contours: bgrChecked -> contours */

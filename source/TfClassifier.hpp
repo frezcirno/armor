@@ -169,9 +169,10 @@ class TfClassifier {
             cv::Mat _crop;
             /* 投影变换 */
             cv::warpPerspective(tmp2, _crop, transMat, cv::Size(tmp2.size()));
-            is.addImg("crop", _crop);
             /* 转灰度图 */
             cv::cvtColor(_crop, _crop, cv::COLOR_BGR2GRAY);
+            cv::threshold(_crop, _crop, 35, 255, cv::THRESH_BINARY);
+            is.addImg("crop", _crop);
             cv::Mat image;
             if (loadAndPre(_crop, image)) {
                 /* mat转换为tensor */

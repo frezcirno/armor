@@ -27,7 +27,7 @@
     classifier-path = '../data/rm520.xml'          # 分类器文件地址
     enable-predict = true
     # 摄像头
-    laji-exposure = 0.0028                                 # 垃圾摄像头曝光
+    laji-exposure = 0.0001                                 # 垃圾摄像头曝光
     pro-exposure = 970.0                                  # 工业摄像头曝光
     cam-model-path = '../data/camera.xml'         # 相机参数文件路径
     kp = 1.0

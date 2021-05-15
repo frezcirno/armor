@@ -51,6 +51,8 @@ class Communicator {
         float yaw = 0.0;
         float pitch = 0.0;
         float speed = 0.0;
+        unsigned char state; //
+        unsigned short time;
         float delay_time = 0.0;
         uint8_t extra[2] = {0, 0};  // additional imformation
         uint8_t crc8check = 0;
