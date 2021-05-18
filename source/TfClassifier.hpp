@@ -201,7 +201,6 @@ class TfClassifier {
             }
         }
         is.addClassifiedTargets("After Classify", targets);
-        std::cout << "Targets: " << targets.size() << std::endl;
     }
 };
 
