@@ -44,7 +44,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
     float rPitch;                        // 相对Pitch值, 发给电控，单位：度
     float rYaw;                          // 相对Yaw值, 发给电控，单位：度
     float bulletSpeed;                   // 子弹速度，单位：m/s
-    int rTick;                           // 相对帧编号
+    int rTick;                           // 相对帧编号， 此对象在 s_historyTargets 中经过的循环数
     emTargetType type;                   // TARGET_SMALL, TARGET_TARGET
 
     cv::Mat rv,  // 旋转向量

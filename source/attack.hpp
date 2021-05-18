@@ -162,6 +162,9 @@ class Attack : AttackBase {
      * 击打策略函数
      * @change s_historyTargets 在数组开头添加本次打击的目标
      * @return emSendStatusA 
+     * SEND_STATUS_AUTO_AIM         击打，且找到上一次击打的目标
+     * SEND_STATUS_AUTO_AIM_FORMER  击打，但是击打的是新目标
+     * SEND_STATUS_AUTO_NOT_FOUND   不击打
      */
     emSendStatusA m_match() {
         /* 更新下相对帧编号 */
@@ -185,53 +188,51 @@ class Attack : AttackBase {
         m_is.addTracks(tracks);
         m_is.addText(cv::format("Track Id: %ld", s_trackId));
 
-        /* 选择本次打击目标 */
-        if (s_historyTargets.empty()) {
-            /* case A: 之前没选择过打击目标 */
-            /* 选择数组中距离最近的目标作为击打目标 */
-            auto minTarElem = std::min_element(
+        if (m_targets.empty()) {
+            // 这一帧没找到目标
+            // 如果30帧内有历史目标则打历史目标，否则返回未找到
+            return s_historyTargets.empty() ?
+                       SEND_STATUS_AUTO_NOT_FOUND :
+                       SEND_STATUS_AUTO_AIM_FORMER;
+
+        } else if (s_historyTargets.empty()) {
+            // 之前没选择过打击目标
+            // 找到含离云台最近的目标, 返回瞄准且找到
+            Target nearestTarget = *std::min_element(
                 m_targets.begin(), m_targets.end(), [](const Target &a_, const Target &b_) {
                     return cv::norm(a_.ptsInGimbal) < cv::norm(b_.ptsInGimbal);
-                });  //找到含离云台最近的目标
-            if (minTarElem != m_targets.end()) {
-                PRINT_INFO("++++++++++++++++ 发现目标: 选择最近的 ++++++++++++++++++++\n");
-                s_historyTargets.emplace_front(*minTarElem);
-                // 找到最近的trackId并记录下来
-                auto minTrackElem = std::min_element(tracks.begin(), tracks.end(), [&](const sort::Track &a, const sort::Track &b) {
-                    return distance(a, *minTarElem) < distance(b, *minTarElem);
                 });
-                s_trackId = (minTrackElem != tracks.end() ? minTrackElem->id : s_trackId);
-                return SEND_STATUS_AUTO_AIM;  //瞄准
-            } else {
-                return SEND_STATUS_AUTO_NOT_FOUND;  //未找到
-            }
-        } else {
-            /* case B: 之前选过打击目标了, 得找到一样的目标 */
-            PRINT_INFO("++++++++++++++++ 开始寻找上一次目标 ++++++++++++++++++++\n");
-            auto trackElem = s_trackId != -1 ?
-                                 std::find_if(tracks.begin(), tracks.end(), [&](const sort::Track &track) {
-                                     return track.id == s_trackId;
-                                 }) :
-                                 tracks.end();
+            s_historyTargets.emplace_front(nearestTarget);
+            // 匹配最近的trackId并记录下来
+            auto minTrackElem = std::min_element(tracks.begin(), tracks.end(), [&](const sort::Track &a, const sort::Track &b) {
+                return distance(a, nearestTarget) < distance(b, nearestTarget);
+            });
+            s_trackId = (minTrackElem != tracks.end() ? minTrackElem->id : s_trackId);
+            return SEND_STATUS_AUTO_AIM;
+
+        } else if (s_trackId != -1) {
+            // 之前选择过打击目标, 而且tracker没有丢失
+            // 寻找最接近上一次目标的目标
+            // 如果找到: 返回瞄准且找到
+            // 否则: 返回瞄准且找到
+            auto trackElem =
+                std::find_if(tracks.begin(), tracks.end(), [&](const sort::Track &track) {
+                    return track.id == s_trackId;
+                });
 
             if (trackElem != tracks.end()) {
-                PRINT_INFO("++++++++++++++++ 找到上一次目标 ++++++++++++++++++++\n");
-                auto closestTarget = std::min_element(m_targets.begin(), m_targets.end(), [&](const Target &a, const Target &b) {
+                // 找到track对象
+                Target closestTarget = *std::min_element(m_targets.begin(), m_targets.end(), [&](const Target &a, const Target &b) {
                     return distance(*trackElem, a) < distance(*trackElem, b);
                 });
-                if (closestTarget != m_targets.end()) {
-                    s_historyTargets.emplace_front(*closestTarget);
-                    return SEND_STATUS_AUTO_AIM;  //瞄准
-                } else {
-                    s_historyTargets.emplace_front(s_historyTargets.front());
-                    return SEND_STATUS_AUTO_AIM;  //瞄准上一帧
-                }
+                s_historyTargets.emplace_front(closestTarget);
+                return SEND_STATUS_AUTO_AIM;  //瞄准上一帧
             } else {
-                PRINT_INFO("++++++++++++++++ 没找到上一次目标, 按上一次的来 ++++++++++++++++++++\n");
                 return SEND_STATUS_AUTO_AIM_FORMER;  //瞄准上一帧
             }
-        }  // end case B
-        PRINT_ERROR("Something is NOT Handled in function m_match \n");
+        } else {
+            // 之前选择过打击目标, 但是tracker已经丢失
+        }
     }
 
   public:
@@ -329,7 +330,6 @@ class Attack : AttackBase {
         /* 目标匹配 + 预测 + 修正弹道 + 计算欧拉角 + 射击策略 */
         if (preLock.owns_lock() && timeStamp > s_latestTimeStamp.load()) {
             s_latestTimeStamp.exchange(timeStamp);
-            float rYaw = 0.0, rPitch = 0.0;  // 相对Yaw和Pitch
 
             /* 获得云台全局欧拉角 */
             m_communicator.getGlobalAngle(&gYaw, &gPitch);
@@ -350,31 +350,31 @@ class Attack : AttackBase {
                 m_communicator.getBulletSpeed(&bulletSpeed);
                 s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed, gPitch, finalPitch);
                 m_is.addText(cv::format("finalPitch %4f", finalPitch));
-                rYaw = s_historyTargets[0].rYaw;
-                rPitch = s_historyTargets[0].rPitch;
                 target_box = s_historyTargets[0];
 
                 /* 6.预测部分 */
                 if (m_isEnablePredict) {
+                    float rYaw = s_historyTargets[0].rYaw;
+                    float rPitch = s_historyTargets[0].rPitch;
                     m_is.addText(cv::format("b4pdct rPitch %4f", rPitch));
                     m_is.addText(cv::format("b4pdct rYaw %4f", rYaw));
-                    if (statusA == SEND_STATUS_AUTO_AIM) { /* 获取世界坐标点 */
-                        m_communicator.getGlobalAngle(&gYaw, &gPitch);
-                        /* 卡尔曼滤波初始化/参数修正 */
+                    // 初始化卡尔曼滤波
+                    if (statusA == SEND_STATUS_AUTO_AIM) {
+                        // 若找到上一次目标, 或者首次选择目标
                         if (s_historyTargets.size() == 1)
+                            // 首次选择目标
                             kalman.clear_and_init(rPitch, rYaw, timeStamp);
                         else {
-                            kalman.correct(&rPitch, &rYaw, timeStamp);
+                            // 若找到上一次目标
+                            kalman.correct(rPitch, rYaw, timeStamp);
                         }
                     }
-                    /* 进行预测和坐标修正 */
+                    // 进行预测和坐标修正
                     if (s_historyTargets.size() > 1) {
-                        kalman.predict(0.1, &s_historyTargets[0].predictPitch, &s_historyTargets[0].predictYaw);
+                        kalman.predict(0.1, s_historyTargets[0].predictPitch, s_historyTargets[0].predictYaw);
                         /* 转换为云台坐标点 */
                         m_is.addText(cv::format("predictPitch %4f", s_historyTargets[0].predictPitch));
                         m_is.addText(cv::format("predictYaw %4f", s_historyTargets[0].predictYaw));
-                        // s_historyTargets[0].predictPitch = rPitch;
-                        // s_historyTargets[0].predictYaw = rYaw;
                     }
                 }
 
@@ -395,11 +395,11 @@ class Attack : AttackBase {
                     m_is.addText(cv::format("delay_time   %.3f", delay_time));
                 }
 
-                /** 8.射击策略
-                 * 目标被识别3帧以上才打
-                 */
-                if (s_historyTargets.size() >= 3)
-                    statusA = SEND_STATUS_AUTO_SHOOT;  //射击
+                // // 8.射击策略
+                // // 目标被识别3帧以上才打
+                //
+                // if (s_historyTargets.size() >= 3)
+                //     statusA = SEND_STATUS_AUTO_SHOOT;  //射击
 
                 m_is.addText(cv::format("ptsInGimbal: %2.2f %2.2f %2.2f",
                     s_historyTargets[0].ptsInGimbal.x / 1000.0,
@@ -410,27 +410,16 @@ class Attack : AttackBase {
                     s_historyTargets[0].ptsInWorld.y / 1000.0,
                     s_historyTargets[0].ptsInWorld.z / 1000.0));
             }
-            /* 8.通过PID对yaw进行修正（参数未修改） */
-            /*
-            float newYaw = rYaw;
-            if (cv::abs(rYaw) < 5)
-                newYaw = m_pid.calc(rYaw, timeStamp);
-            else
-                m_pid.clear();
-            m_is.addText(cv::format("newYaw %3.3f", newYaw));
-            m_is.addText(cv::format("delta yaw %3.3f", newYaw - rYaw));
 
-            newYaw = cv::abs(newYaw) < 0.3 ? rYaw : newYaw;
-            */
-            // rYaw = 0;
-            // rPitch = 0;
-            // statusA = SEND_STATUS_AUTO_NOT_FOUND;
-            m_is.addText(cv::format("rPitch %.3f", rPitch));
-            m_is.addText(cv::format("rYaw   %.3f", rYaw));
+            float finalPitch = s_historyTargets[0].predictPitch;
+            float finalYaw = s_historyTargets[0].predictYaw;
+
+            m_is.addText(cv::format("rPitch %.3f", finalPitch));
+            m_is.addText(cv::format("rYaw   %.3f", finalYaw));
             m_is.addText(cv::format("statusA   %.3x", statusA));
 
             /* 9.发给电控 */
-            m_communicator.send(rYaw, -rPitch, delay_time, statusA, SEND_STATUS_WM_PLACEHOLDER);
+            m_communicator.send(finalYaw, -finalPitch, delay_time, statusA, SEND_STATUS_WM_PLACEHOLDER);
             PRINT_INFO("[attack] send = %ld", timeStamp);
         }
         if (preLock.owns_lock())
