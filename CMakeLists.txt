@@ -4,7 +4,7 @@ project(tjsp_attack_2021)
 
 set(CMAKE_CXX_STANDARD 14)  # for chrono
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "-pthread")
+set(CMAKE_CXX_FLAGS "-Ofast -march=native -pthread")
 
 set(CAMERA "MINDVISION") # 可选项: "DAHUA" (default), "MINDVISION", "DAHENG"
 
