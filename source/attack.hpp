@@ -173,7 +173,10 @@ class Attack : AttackBase {
             }
         } else {
             // 之前选择过打击目标, 但是tracker已经丢失
+            // 因为s_historyTargets还有值，暂时使用旧值
+            return SEND_STATUS_AUTO_AIM_FORMER;  //瞄准上一帧
         }
+        return SEND_STATUS_AUTO_NOT_FOUND;
     }
 
   public:
