@@ -35,7 +35,7 @@ DDSolver dd = DDSolver();  //DDSolver::get_k1(bulletSpeed,pitch,x,y)
  */
 struct Target {                          // TODO: 结构体太大了，尝试优化不必要的变量
     Quadrilateral<float> pixelPts2f;     // 硬件ROI图幅下的像素坐标（即m_bgr_raw中的坐标）
-    cv::Point2f pixelCenterPt2f;         // 像素坐标中心
+    cv::Point2f pixelCenterPt2f;         // 装甲板在图像中的中心坐标
     Quadrilateral<float> pixelPts2f_Ex;  // 扩展像素坐标
     cv::Point3d ptsInGimbal;             // 物体在云台坐标系下坐标(相机坐标系经过固定变换后得到)，单位：mm
     cv::Point3d ptsInWorld;              // 物体在世界坐标系下坐标，见convert2WorldPts函数说明，单位：mm
