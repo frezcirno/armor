@@ -536,8 +536,10 @@ class ImageShowClient : ImageShowBase {
      * 通知服务端刷新图像显示
      */
     void show() {
+        using namespace std::chrono_literals;
+
         while (s_isPause.load() && s_mode != 0)
-            thread_sleep_us(1);
+            std::this_thread::sleep_for(1us);
         m_clockPrint();
         if (s_mode == 0)
             return;

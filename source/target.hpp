@@ -35,7 +35,7 @@ DDSolver dd = DDSolver();  //DDSolver::get_k1(bulletSpeed,pitch,x,y)
  */
 struct Target {                          // TODO: 结构体太大了，尝试优化不必要的变量
     Quadrilateral<float> pixelPts2f;     // 硬件ROI图幅下的像素坐标（即m_bgr_raw中的坐标）
-    cv::Point2f pixelCenterPt2f;         // 像素坐标中心
+    cv::Point2f pixelCenterPt2f;         // 装甲板在图像中的中心坐标
     Quadrilateral<float> pixelPts2f_Ex;  // 扩展像素坐标
     cv::Point3d ptsInGimbal;             // 物体在云台坐标系下坐标(相机坐标系经过固定变换后得到)，单位：mm
     cv::Point3d ptsInWorld;              // 物体在世界坐标系下坐标，见convert2WorldPts函数说明，单位：mm
@@ -44,7 +44,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
     float rPitch;                        // 相对Pitch值, 发给电控，单位：度
     float rYaw;                          // 相对Yaw值, 发给电控，单位：度
     float bulletSpeed;                   // 子弹速度，单位：m/s
-    int rTick;                           // 相对帧编号
+    int rTick;                           // 相对帧编号， 此对象在 s_historyTargets 中经过的循环数
     emTargetType type;                   // TARGET_SMALL, TARGET_TARGET
 
     cv::Mat rv,  // 旋转向量

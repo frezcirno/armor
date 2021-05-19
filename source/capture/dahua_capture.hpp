@@ -218,18 +218,22 @@ class DaHuaVision : public Capture {
             // m_frame.reset();
             printf("[DaHua] Camera Start Play\n");
             /*    处理录视频    */
-            if (stConfig.get<bool>("cap.record")) {
+            if (m_isEnableRecord = stConfig.get<bool>("cap.record")) {
                 std::string rC = "MJPG";
                 int recordCode = cv::VideoWriter::fourcc(rC[0], rC[1], rC[2], rC[3]);
                 std::string path = "../data/video/" + m_genVideoName("auto") + ".avi";
                 m_writer.open(path, recordCode, 210, stFrameInfo.size);
                 printf("| record: %s |\n", path.c_str());
-                m_isEnableRecord = true;
 
-                m_recordThread = std::thread([&]() {
+                m_recordThread = std::thread([&] {
                     while (m_isOpened) {
-                        m_semaphore.wait_for(2s, [&]() { m_writer << m_recordFrame; });
-                        thread_sleep_us(100);
+                        {
+                            std::unique_lock<std::mutex> lock(m_recordLock);
+                            if (m_cond.wait_for(lock, 2s, [&] { return m_record; })) {
+                                m_writer << m_recordFrame;
+                            }
+                        }
+                        std::this_thread::sleep_for(100us);
                     }
                     PRINT_WARN("record quit\n");
                 });
@@ -293,7 +297,13 @@ class DaHuaVision : public Capture {
                 1000 * (cv::getTickCount() - t) / cv::getTickFrequency());
 
             if (m_isEnableRecord) {
-                m_semaphore.signal_try([&]() { frame.copyTo(m_recordFrame); });
+                std::unique_lock<std::mutex> lock(m_recordLock, std::try_to_lock);
+                if (lock.owns_lock()) {
+                    frame.copyTo(m_recordFrame);
+                    m_record = true;
+                    lock.unlock();
+                    m_cond.notify_one();
+                }
             }
 
             /* 获得时间戳 */

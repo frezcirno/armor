@@ -1,5 +1,9 @@
 #pragma once
 
+#include <imageshow.hpp>
+#include <opencv2/opencv.hpp>
+#include <vector>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #include "google/protobuf/wrappers.pb.h"
@@ -78,9 +82,9 @@ class TfClassifier {
             return false;
         /* 调整大小 同比缩放至fixedsize*fixedsize以内 */
         if (img.cols < img.rows)
-            resize(img, img, {int(img.cols * 1.0 / img.rows * fixedSize), fixedSize});
+            cv::resize(img, img, {int(img.cols * 1.0 / img.rows * fixedSize), fixedSize});
         else
-            resize(img, img, {fixedSize, int(img.rows * 1.0 / img.cols * fixedSize)});
+            cv::resize(img, img, {fixedSize, int(img.rows * 1.0 / img.cols * fixedSize)});
         /* 剪去边上多余部分 */
         int cutRatio1 = 0.15 * img.cols;
         int cutRatio2 = 0.05 * img.rows;
@@ -165,9 +169,14 @@ class TfClassifier {
             cv::Mat _crop;
             /* 投影变换 */
             cv::warpPerspective(tmp2, _crop, transMat, cv::Size(tmp2.size()));
-            is.addImg("crop", _crop);
             /* 转灰度图 */
             cv::cvtColor(_crop, _crop, cv::COLOR_BGR2GRAY);
+            // is.addImg("cvtColor", _crop);
+            cv::medianBlur(_crop, _crop, 3);
+            // is.addImg("medianBlur", _crop);
+            cv::threshold(_crop, _crop, 30, 255, cv::THRESH_BINARY);
+            is.addImg("crop", _crop);
+
             cv::Mat image;
             if (loadAndPre(_crop, image)) {
                 /* mat转换为tensor */
@@ -180,7 +189,7 @@ class TfClassifier {
                 auto output_c = outputs[0].scalar<float>();
                 float result = output_c();
                 /* 判断正负样本 */
-                if (0 <= result) {
+                if (0.01 <= result) {
                     targets.emplace_back(_tar);
                 }
                 /* 储存图 */
