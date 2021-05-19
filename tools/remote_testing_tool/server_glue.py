@@ -1,3 +1,4 @@
+import subprocess
 import cv2 as cv
 
 # `frame_provider` is an object that provides a single frame,
@@ -9,4 +10,19 @@ class DemoFrameProvider:
         self._camera = cv.VideoCapture(0)
         self.get_current_frame = lambda : self._camera.read()[1]
 
-frame_provider = DemoFrameProvider()
+class FrameReader:
+    def __init__(self, file_name: str):
+        self.file_name = file_name
+
+    def get_current_frame(self):
+        return cv.imread(self.file_name)
+        
+class CppFrameReader:
+    def __init__(self):
+        import subprocess
+    def get_current_frame(self):
+        subprocess.run(["cpp_img_sender/build/cpp_img_sender"])
+        return cv.imread("test.jpg")
+    
+
+frame_provider = CppFrameReader()
