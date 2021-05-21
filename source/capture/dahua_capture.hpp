@@ -62,8 +62,11 @@ class DaHuaVision : public Capture {
         // getHeight(cameraSptr, nHeight);
 
         double dExposureTime = 0;
-        setExposureTime(cameraSptr,
-            stConfig.get<double>("auto.pro-exposure"), true);
+        /**
+         * 不要开自动曝光！
+         **/
+        setExposureTime(cameraSptr, stConfig.get<double>("auto.pro-exposure"), false);
+
         // setExposureTime(cameraSptr, 10000, false);
         // getExposureTime(cameraSptr, dExposureTime);
         // cout << "getExposureTime: " << dExposureTime << endl;
