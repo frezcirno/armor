@@ -1,6 +1,7 @@
 #pragma once
 
 #include "capture/base_capture.hpp"
+#include <string>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -143,10 +144,20 @@ class DaHuaVision : public Capture {
         // number,DeviceUserID,IP Address)
         // 打印相机基本信息（序号,类型,制造商信息,型号,序列号,用户自定义ID,IP地址）
         displayDeviceInfo(vCameraPtrList);
-        // int cameraIndex = selectDevice(vCameraPtrList.size());
 
-        // cameraSptr = vCameraPtrList[cameraIndex];
-        cameraSptr = vCameraPtrList[0];
+        for (auto &&cam : vCameraPtrList) {
+            auto venderName = std::string(cam->getVendorName());
+            if (venderName.find("Dahua") != -1) {
+                cameraSptr = cam;
+                break;
+            }
+        }
+
+        if (cameraSptr.get() == NULL) {
+            PRINT_WARN("[Dahua] Use 0 camera");
+            cameraSptr = vCameraPtrList[0];
+        }
+
         /* GigE相机时，连接前设置相机Ip与网卡处于同一网段上 */
         if (ICamera::typeGige == cameraSptr->getType()) {
             if (autoSetCameraIP(cameraSptr) != 0) {
@@ -229,7 +240,7 @@ class DaHuaVision : public Capture {
                     while (m_isOpened) {
                         {
                             std::unique_lock<std::mutex> lock(m_recordLock);
-                            if (m_cond.wait_for(lock, 2s, [&] { return m_record; })) {
+                            if (m_cond.wait_for(lock, 2s, [&] { return m_record.load(); })) {
                                 m_writer << m_recordFrame;
                             }
                         }
