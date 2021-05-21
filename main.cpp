@@ -10,6 +10,8 @@
 #include <windmill/Windmill.hpp>
 
 int main() {
+    using namespace std::chrono_literals;
+
     std::cout << "[General] Using OpenCV " << CV_VERSION << std::endl;
 
     int threadNum = stConfig.get<int>("auto.thread-num");  //线程数初始化
@@ -66,12 +68,22 @@ int main() {
         stConfig.get<double>("auto.ki"),
         stConfig.get<double>("auto.kd"));
 
+    /* 图像旋转角度（适配摄像头装反的情况） */
+    int rotate = -1;
+    switch (stConfig.get<int>("cap.rotate")) {
+        case 0: rotate = -1; break;
+        case 90: rotate = cv::ROTATE_90_CLOCKWISE; break;
+        case 180: rotate = cv::ROTATE_180; break;
+        case 270: rotate = cv::ROTATE_90_COUNTERCLOCKWISE; break;
+        default: PRINT_WARN("[config] cap.rotate: invalid value"); break;
+    }
+
     for (int i = 0; i < threadNum; ++i) {
         /**
          * 每个线程都会对attack、windmill进行初始化，之后会根据循环中i的值来为不同到线程分配不同到击打任务（自瞄或者风车击打）
          * 作为std::thread参数的匿名函数是线程的执行体
          */
-        attackThreads[i] = std::thread([cap, &isServer, i, &communicator, &pid]() {
+        attackThreads[i] = std::thread([cap, &isServer, i, &communicator, &pid, rotate]() {
             ImageShowClient isClient = isServer.getClient(i);
 
             /* 初始化 attack */
@@ -104,11 +116,14 @@ int main() {
                 if (cap->wait_and_get(frame, timeStamp, [&communicator, &gYaw, &gPitch]() {
                         communicator.getGlobalAngle(&gYaw, &gPitch);
                     })) {
+                    if (rotate != -1) {
+                        cv::rotate(frame, frame, rotate);
+                    }
                     /* 刷新主线程窗口图像 */
                     isClient.update(frame, int(timeStamp / 1000));
                     isClient.addText(cv::format("size %d x %d", stFrameInfo.size.width, stFrameInfo.size.height));
                     isClient.addText(cv::format("ts %ld", timeStamp));
-                    isClient.addText(cv::format("fps %3d", int(1000000000 / cap->getCurrentInterval()))); // TODO: 大华相机和MindVision返回的值单位不同
+                    isClient.addText(cv::format("fps %3d", 1000000 / cap->getCurrentInterval()));
                     isClient.addText(cv::format("send %2.2f ms", communicator.getCurrentInterval() / 1000.0));
 
                     isClient.clock("run");
@@ -188,13 +203,12 @@ int main() {
                     std::cout << "@@@@@@@@@@@@@@@ " << cost << " ms\n";
                     std::cout << "@@@@@@@@@@@@@@@ NOW MAX -> " << now_max << " ms\n";
                     isClient.clock("run");
-
                 } else {
                     PRINT_ERROR("capture wait_and_get() failed once\n");
                 }
 
                 while (isServer.isPause()) {
-                    thread_sleep_us(5);
+                    std::this_thread::sleep_for(5us);
                 }
             }
             PRINT_INFO("attackThreads %d quit \n", i);

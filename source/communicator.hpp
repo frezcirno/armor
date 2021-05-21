@@ -222,6 +222,8 @@ class CommunicatorSerial : public Communicator {
      * @param baudrate
      */
     void open(const cv::String &portName, uint32_t baudrate = 115200) {
+        using namespace std::chrono_literals;
+
         if (m_isDisable.load()) return;
         m_ser.setPort(portName);
         m_ser.setBaudrate(baudrate);
@@ -236,7 +238,7 @@ class CommunicatorSerial : public Communicator {
                 PRINT_ERROR("[serial] error: %s\n", e.what());
             }
             /* 转移时间片 */
-            thread_sleep_ms(100);
+            std::this_thread::sleep_for(100ms);
             if (openSerialCounter > 10) break;
         }
         if (m_ser.isOpen())
@@ -281,10 +283,12 @@ class CommunicatorSerial : public Communicator {
     };
 
     void startReceiveService() override {
+        using namespace std::chrono_literals;
+
         if (m_isDisable.load()) return;
         m_receiveThread = std::thread([&]() {
             while (!m_ser.isOpen() && !m_letStop.load()) {
-                thread_sleep_us(200);
+                std::this_thread::sleep_for(200us);
             }
             std::vector<uint8_t> buffer;
             while (!m_letStop.load()) {
@@ -292,7 +296,8 @@ class CommunicatorSerial : public Communicator {
                 if (size_temp > 0) {
                     /* 读值 */
                     std::vector<uint8_t> buffer_tmp;
-                    m_ser.read(buffer_tmp, size_temp);
+                    size_t readed = m_ser.read(buffer_tmp, size_temp);
+                    PRINT_INFO("[serial] read %d\n", readed);
                     buffer.insert(buffer.end(), buffer_tmp.begin(), buffer_tmp.end());
                     /* 校验 */
                     while (buffer.size() >= m_frameSize) {
@@ -326,7 +331,7 @@ class CommunicatorSerial : public Communicator {
                     }
                 }
                 /* 转移时间片 */
-                thread_sleep_us(5);
+                std::this_thread::sleep_for(5us);
             }
         });
     }
@@ -374,6 +379,8 @@ class CommunicatorUSB : public Communicator {
     }
 
     void startReceiveService() override {
+        using namespace std::chrono_literals;
+
         m_receiveThread = std::thread([&]() {
             uint8_t buffer[1024] = {0};
             while (!m_letStop.load()) {
@@ -412,7 +419,7 @@ class CommunicatorUSB : public Communicator {
                         memcpy(buffer, &buf[i + m_frameSize], size);
                     }
                     /* 转移时间片 */
-                    thread_sleep_us(5);
+                    std::this_thread::sleep_for(5us);
                 }
             }
         });

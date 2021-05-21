@@ -1,6 +1,7 @@
 #pragma once
 
 #include "capture/base_capture.hpp"
+#include <string>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
@@ -61,8 +62,11 @@ class DaHuaVision : public Capture {
         // getHeight(cameraSptr, nHeight);
 
         double dExposureTime = 0;
-        setExposureTime(cameraSptr,
-            stConfig.get<double>("auto.pro-exposure"), true);
+        /**
+         * 不要开自动曝光！
+         **/
+        setExposureTime(cameraSptr, stConfig.get<double>("auto.pro-exposure"), false);
+
         // setExposureTime(cameraSptr, 10000, false);
         // getExposureTime(cameraSptr, dExposureTime);
         // cout << "getExposureTime: " << dExposureTime << endl;
@@ -143,10 +147,20 @@ class DaHuaVision : public Capture {
         // number,DeviceUserID,IP Address)
         // 打印相机基本信息（序号,类型,制造商信息,型号,序列号,用户自定义ID,IP地址）
         displayDeviceInfo(vCameraPtrList);
-        // int cameraIndex = selectDevice(vCameraPtrList.size());
 
-        // cameraSptr = vCameraPtrList[cameraIndex];
-        cameraSptr = vCameraPtrList[0];
+        for (auto &&cam : vCameraPtrList) {
+            auto venderName = std::string(cam->getVendorName());
+            if (venderName.find("Dahua") != -1) {
+                cameraSptr = cam;
+                break;
+            }
+        }
+
+        if (cameraSptr.get() == NULL) {
+            PRINT_WARN("[Dahua] Use 0 camera");
+            cameraSptr = vCameraPtrList[0];
+        }
+
         /* GigE相机时，连接前设置相机Ip与网卡处于同一网段上 */
         if (ICamera::typeGige == cameraSptr->getType()) {
             if (autoSetCameraIP(cameraSptr) != 0) {
@@ -218,18 +232,22 @@ class DaHuaVision : public Capture {
             // m_frame.reset();
             printf("[DaHua] Camera Start Play\n");
             /*    处理录视频    */
-            if (stConfig.get<bool>("cap.record")) {
+            if (m_isEnableRecord = stConfig.get<bool>("cap.record")) {
                 std::string rC = "MJPG";
                 int recordCode = cv::VideoWriter::fourcc(rC[0], rC[1], rC[2], rC[3]);
                 std::string path = "../data/video/" + m_genVideoName("auto") + ".avi";
                 m_writer.open(path, recordCode, 210, stFrameInfo.size);
                 printf("| record: %s |\n", path.c_str());
-                m_isEnableRecord = true;
 
-                m_recordThread = std::thread([&]() {
+                m_recordThread = std::thread([&] {
                     while (m_isOpened) {
-                        m_semaphore.wait_for(2s, [&]() { m_writer << m_recordFrame; });
-                        thread_sleep_us(100);
+                        {
+                            std::unique_lock<std::mutex> lock(m_recordLock);
+                            if (m_cond.wait_for(lock, 2s, [&] { return m_record.load(); })) {
+                                m_writer << m_recordFrame;
+                            }
+                        }
+                        std::this_thread::sleep_for(100us);
                     }
                     PRINT_WARN("record quit\n");
                 });
@@ -293,11 +311,17 @@ class DaHuaVision : public Capture {
                 1000 * (cv::getTickCount() - t) / cv::getTickFrequency());
 
             if (m_isEnableRecord) {
-                m_semaphore.signal_try([&]() { frame.copyTo(m_recordFrame); });
+                std::unique_lock<std::mutex> lock(m_recordLock, std::try_to_lock);
+                if (lock.owns_lock()) {
+                    frame.copyTo(m_recordFrame);
+                    m_record = true;
+                    lock.unlock();
+                    m_cond.notify_one();
+                }
             }
 
             /* 获得时间戳 */
-            timeStamp = m_frame.getImageTimeStamp();
+            timeStamp = m_frame.getImageTimeStamp() / 1000;
             m_currentInterval.exchange(timeStamp - m_currentTimeStamp);
             m_currentTimeStamp = timeStamp;
 

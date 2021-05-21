@@ -10,7 +10,7 @@ int main() {
 //    communicator.open(0x0477, 0x5620);
 
     CommunicatorSerial communicator;
-    communicator.open("/dev/USBsp2");
+    communicator.open("/dev/ttyUSB0");
 
     communicator.enableReceiveGlobalAngle(true);
 
