@@ -318,7 +318,7 @@ class DaHuaVision : public Capture {
             }
 
             /* 获得时间戳 */
-            timeStamp = m_frame.getImageTimeStamp();
+            timeStamp = m_frame.getImageTimeStamp() / 1000;
             m_currentInterval.exchange(timeStamp - m_currentTimeStamp);
             m_currentTimeStamp = timeStamp;
 
