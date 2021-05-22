@@ -39,7 +39,7 @@ class ArmorFinder {
         m_is.clock("inRange");
         if (_colorMode) {
             /* 红色 */
-            cv::inRange(bgr, cv::Scalar(0, 0, 140), cv::Scalar(70, 70, 255), bgrChecked);
+            cv::inRange(bgr, cv::Scalar(0, 0, 140), cv::Scalar(110, 110, 255), bgrChecked);
         } else {
             /* 蓝色 */
             cv::inRange(bgr, cv::Scalar(130, 100, 0), cv::Scalar(255, 255, 65), bgrChecked);
@@ -47,7 +47,7 @@ class ArmorFinder {
         m_is.clock("inRange");
 
         /* 进行膨胀操作（默认关闭）: bgrChecked -> bgrChecked */
-        // m_is.addImg("bgrChecked", bgrChecked, false);
+        m_is.addImg("bgrChecked", bgrChecked, false);
         if (_useDialte) {
             cv::Mat element = getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
             dilate(bgrChecked, bgrChecked, element);
@@ -128,22 +128,22 @@ class ArmorFinder {
                 cv::Vec2f orientation(cos(angleSum), sin(angleSum));
                 cv::Vec2f p2p(AC2BC.x, AC2BC.y);
                 if (abs(orientation.dot(p2p)) >= 25) {
-                    continue;
+                    // continue;
                 }
                 double minLength = cv::min(lights[i].length, lights[j].length);
                 double meanLength = (lights[i].length + lights[j].length) / 2.0;
                 double deltaAngle = cv::abs(lights[i].angle - lights[j].angle);
                 /* 对灯条组的长度，角度差，中心点tan值，x位置等进行筛选， */
                 if ((deltaAngle > 23.0 && minLength < 20) || (deltaAngle > 11.0 && minLength >= 20)) {
-                    continue;
+                    // continue;
                 }
                 if (cv::abs(lights[i].length - lights[j].length) / minLength > 0.5) {
                     continue;
                 }
                 if (cv::fastAtan2(cv::abs(AC2BC.y), cv::abs(AC2BC.x)) > 25.0) {
-                    continue;
+                    // continue;
                 }
-                if (AC2BC.x / minLength > 5) {
+                if (cv::norm(AC2BC) / minLength > 5) {
                     continue;
                 }
                 Target target;

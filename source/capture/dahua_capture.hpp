@@ -65,7 +65,7 @@ class DaHuaVision : public Capture {
         /**
          * 不要开自动曝光！
          **/
-        setExposureTime(cameraSptr, stConfig.get<double>("auto.pro-exposure"), false);
+        setExposureTime(cameraSptr, 10 * stConfig.get<double>("auto.pro-exposure"), false);
 
         // setExposureTime(cameraSptr, 10000, false);
         // getExposureTime(cameraSptr, dExposureTime);
@@ -74,27 +74,27 @@ class DaHuaVision : public Capture {
         // double dMinExposure, dMaxExposure;
         // getExposureTimeMinMaxValue(cameraSptr, dMinExposure, dMaxExposure);
 
-        double dGainRaw = 0;
-        double dGainRawMin = 0;
-        double dGainRawMax = 0;
-        setGainRaw(cameraSptr, 1.5);
+        // double dGainRaw = 0;
+        // double dGainRawMin = 0;
+        // double dGainRawMax = 0;
+        // setGainRaw(cameraSptr, 1.5);
         // getGainRaw(cameraSptr, dGainRaw);
         // getGainRawMinMaxValue(cameraSptr, dGainRawMin, dGainRawMax);
         // cout << "getGainRaw: " << dGainRaw << endl;
 
-        double dGamma = 0;
-        double dGammaMin = 0;
-        double dGammaMax = 0;
+        // double dGamma = 0;
+        // double dGammaMin = 0;
+        // double dGammaMax = 0;
         setGamma(cameraSptr, 0.8);
         // getGamma(cameraSptr, dGamma);
         // getGammaMinMaxValue(cameraSptr, dGammaMin, dGammaMax);
 
-        double dRedBalanceRatio = 0;
-        double dGreenBalanceRatio = 0;
-        double dBlueBalanceRatio = 0;
-        double dMinBalanceRatio = 0;
-        double dMaxBalanceRatio = 0;
-        setBalanceRatio(cameraSptr, 1.5, 1.5, 1.5);
+        // double dRedBalanceRatio = 0;
+        // double dGreenBalanceRatio = 0;
+        // double dBlueBalanceRatio = 0;
+        // double dMinBalanceRatio = 0;
+        // double dMaxBalanceRatio = 0;
+        setBalanceRatio(cameraSptr, 1.49, 1.0, 1.0);
         // getBalanceRatio(cameraSptr, dRedBalanceRatio, dGreenBalanceRatio,
         // dBlueBalanceRatio);
         // getBalanceRatioMinMaxValue(cameraSptr, dMinBalanceRatio,
