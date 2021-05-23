@@ -174,7 +174,7 @@ class TfClassifier {
             is.addImg("cvtColor", _crop);
             cv::medianBlur(_crop, _crop, 3);
             is.addImg("medianBlur", _crop);
-            cv::threshold(_crop, _crop, 20, 255, cv::THRESH_BINARY);
+            cv::threshold(_crop, _crop, 35, 255, cv::THRESH_BINARY);
             is.addImg("crop", _crop);
 
             cv::Mat image;

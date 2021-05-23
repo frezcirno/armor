@@ -39,7 +39,7 @@ class ArmorFinder {
         m_is.clock("inRange");
         if (_colorMode) {
             /* 红色 */
-            cv::inRange(bgr, cv::Scalar(0, 0, 140), cv::Scalar(110, 110, 255), bgrChecked);
+            cv::inRange(bgr, cv::Scalar(0, 0, 140), cv::Scalar(70, 70, 255), bgrChecked);
         } else {
             /* 蓝色 */
             cv::inRange(bgr, cv::Scalar(130, 100, 0), cv::Scalar(255, 255, 65), bgrChecked);
