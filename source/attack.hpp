@@ -327,17 +327,18 @@ class Attack : AttackBase {
                 m_communicator.getBulletSpeed(&bulletSpeed);
                 s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed, gPitch, finalPitch);
                 m_is.addText(cv::format("finalPitch %4f", finalPitch));
+                rYaw = s_historyTargets[0].rYaw;
+                rPitch = s_historyTargets[0].rPitch;
                 target_box = s_historyTargets[0];
 
                 /* 6.预测部分 */
                 if (m_isEnablePredict) {
-                    float rYaw = s_historyTargets[0].rYaw;
-                    float rPitch = s_historyTargets[0].rPitch;
                     m_is.addText(cv::format("b4pdct rPitch %4f", rPitch));
                     m_is.addText(cv::format("b4pdct rYaw %4f", rYaw));
                     // 初始化卡尔曼滤波
                     if (statusA == SEND_STATUS_AUTO_AIM) {
                         // 若找到上一次目标, 或者首次选择目标
+                        m_communicator.getGlobalAngle(&gYaw, &gPitch);
                         if (s_historyTargets.size() == 1)
                             // 首次选择目标
                             kalman.clear_and_init(rPitch, rYaw, timeStamp);
@@ -352,6 +353,8 @@ class Attack : AttackBase {
                         /* 转换为云台坐标点 */
                         m_is.addText(cv::format("predictPitch %4f", s_historyTargets[0].predictPitch));
                         m_is.addText(cv::format("predictYaw %4f", s_historyTargets[0].predictYaw));
+                        rYaw = s_historyTargets[0].predictYaw;
+                        rPitch = s_historyTargets[0].predictPitch;
                     }
                 }
 
@@ -379,9 +382,6 @@ class Attack : AttackBase {
                 dist = 0.001 * std::sqrt(pts.x * pts.x + pts.y * pts.y + pts.z * pts.z);
             }
 
-            float finalPitch = s_historyTargets[0].predictPitch;
-            float finalYaw = s_historyTargets[0].predictYaw;
-
             /* 8.反小陀螺模式*/
             bool is_anti = is_antitop();
             m_is.addText(cv::format("is_antitop   %.3f", is_anti));
@@ -397,21 +397,21 @@ class Attack : AttackBase {
                     cv::Point3d target = cv::Point3d((center.x + center_.x) / 2, (center.y + center_.y) / 2, (center.z + center_.z) / 2);
                     float yaw = cv::fastAtan2(target.x, cv::sqrt(target.y * target.y + target.z * target.z));
                     yaw = yaw > 180 ? yaw - 360 : yaw;
-                    finalYaw = yaw;
-                    finalPitch = cv::fastAtan2(target.y, cv::sqrt(target.x * target.x + target.z * target.z));
+                    rYaw = yaw;
+                    rPitch = cv::fastAtan2(target.y, cv::sqrt(target.x * target.x + target.z * target.z));
                 } else {
-                    finalYaw = 0;
-                    finalPitch = 0;
+                    rYaw = 0;
+                    rPitch = 0;
                 }
             }
 
-            m_is.addText(cv::format("rPitch %.3f", finalPitch));
-            m_is.addText(cv::format("rYaw   %.3f", finalYaw));
+            m_is.addText(cv::format("rPitch %.3f", rPitch));
+            m_is.addText(cv::format("rYaw   %.3f", rYaw));
             m_is.addText(cv::format("dist   %.3f", dist));
             m_is.addText(cv::format("statusA   %.3x", statusA));
 
             /* 9.发给电控 */
-            m_communicator.send(finalYaw, -finalPitch, dist, statusA, SEND_STATUS_WM_PLACEHOLDER);
+            m_communicator.send(rYaw, -rPitch, dist, statusA, SEND_STATUS_WM_PLACEHOLDER);
             PRINT_INFO("[attack] send = %ld", timeStamp);
         }
         if (preLock.owns_lock())
