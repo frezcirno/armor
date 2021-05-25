@@ -19,7 +19,7 @@
     # 录视频
     record = false
 
-# 自瞄
+# 自瞄*
 [auto]
     # 参数
     thread-num = 1                                 # 线程数量
@@ -27,8 +27,8 @@
     classifier-path = '../data/rm520.xml'          # 分类器文件地址
     enable-predict = true
     # 摄像头
-    laji-exposure = 0.0001                                 # 垃圾摄像头曝光
-    pro-exposure = 970.0                                  # 工业摄像头曝光
+    laji-exposure = 0.0028                                 # 垃圾摄像头曝光
+    pro-exposure = 1500.0                                  # 工业摄像头曝光
     cam-model-path = '../data/camera.xml'         # 相机参数文件路径
     kp = 1.0
     ki = 0.0
