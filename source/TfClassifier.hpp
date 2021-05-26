@@ -1,5 +1,9 @@
 #pragma once
 
+#include <imageshow.hpp>
+#include <opencv2/opencv.hpp>
+#include <vector>
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #include "google/protobuf/wrappers.pb.h"
@@ -166,9 +170,14 @@ class TfClassifier {
             cv::Mat _crop;
             /* 投影变换 */
             cv::warpPerspective(tmp2, _crop, transMat, cv::Size(tmp2.size()));
-            is.addImg("crop", _crop);
             /* 转灰度图 */
             cv::cvtColor(_crop, _crop, cv::COLOR_BGR2GRAY);
+            // is.addImg("cvtColor", _crop);
+            cv::medianBlur(_crop, _crop, 3);
+            // is.addImg("medianBlur", _crop);
+            cv::threshold(_crop, _crop, 30, 255, cv::THRESH_BINARY);
+            is.addImg("crop", _crop);
+
             cv::Mat image;
             if (loadAndPre(_crop, image)) {
                 /* mat转换为tensor */
@@ -181,7 +190,7 @@ class TfClassifier {
                 auto output_c = outputs[0].scalar<float>();
                 float result = output_c();
                 /* 判断正负样本 */
-                if (0.3 <= result) {
+                if (0.01 <= result) {
                     targets.emplace_back(_tar);
                 }
                 /* 储存图 */

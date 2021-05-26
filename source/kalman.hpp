@@ -51,7 +51,7 @@ class Kalman {
      * @param timeStamp 微秒
      * 卡尔曼修正函数
      */
-    void correct(float *gPitch, float *gYaw, int64_t timeStamp) {
+    void correct(float gPitch, float gYaw, int64_t timeStamp) {
         float deltaT = (timeStamp - m_lastTimeStamp) / 10000.0;
         assert(deltaT > 0);
         m_lastTimeStamp = timeStamp;
@@ -59,22 +59,9 @@ class Kalman {
             0, 1, deltaT, 0,
             0, 0, 1, 0,
             0, 0, 0, 1);
-        m_measurement.at<float>(0) = (float)*gPitch;
-        m_measurement.at<float>(1) = (float)*gYaw;
-        //m_measurement.at<float>(2) = (float)pos.z;
+        m_measurement.at<float>(0) = gPitch;
+        m_measurement.at<float>(1) = gYaw;
         m_kf.correct(m_measurement);
-    }
-
-    /**
-     * @param delay 秒
-     * @param predictRelativePos 预测坐标
-     */
-    void predict(float delay, cv::Point3d &predictRelativePos) {
-        cv::Mat prediction = m_kf.predict();
-        velocity = cv::Point3d(prediction.at<float>(3), prediction.at<float>(4), prediction.at<float>(5));
-        predictRelativePos.x = prediction.at<float>(0) + delay * prediction.at<float>(3);
-        predictRelativePos.y = prediction.at<float>(1) + delay * prediction.at<float>(4);
-        predictRelativePos.z = prediction.at<float>(2) + delay * prediction.at<float>(5);
     }
 
     /**
@@ -82,9 +69,9 @@ class Kalman {
      * @param predictPitch 预测角度
      * @param predictYaw 预测角度
      */
-    void predict(float delay, float *predictPitch, float *predictYaw) {
+    void predict(float delay, float &predictPitch, float &predictYaw) {
         cv::Mat prediction = m_kf.predict();
-        *predictPitch = prediction.at<float>(0) + delay * prediction.at<float>(2);
-        *predictYaw = prediction.at<float>(1) + delay * prediction.at<float>(3);
+        predictPitch = prediction.at<float>(0) + delay * prediction.at<float>(2);
+        predictYaw = prediction.at<float>(1) + delay * prediction.at<float>(3);
     }
 };

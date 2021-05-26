@@ -1,7 +1,9 @@
 #pragma once
 
 #include <CameraApi.h>  // mindvision
+#include <functional>
 
+#include "base.hpp"
 #include "capture/base_capture.hpp"
 #include "debug.h"
 
@@ -109,9 +111,10 @@ class MindVision : public Capture {
         if (iCameraCounts == 0 || iStatus != CAMERA_STATUS_SUCCESS) {
             perror("[MindVision] No Device Found");
             exit(-1);
-        } else
+        } else {
             printf("[MindVision] EnumerateDevice = %d, Device count = %d\n", iStatus,
                 iCameraCounts);
+        }
 
         /* 相机初始化. 初始化成功后, 才能调用任何其他相机相关的操作接口 */
         iStatus = CameraInit(&tCameraEnumList, -1, -1, &m_hCamera);
@@ -119,8 +122,9 @@ class MindVision : public Capture {
         if (iStatus != CAMERA_STATUS_SUCCESS) {
             perror("[MindVision] Camera Init failed");
             return false;
-        } else
+        } else {
             printf("[MindVision] Camera Init state = %d\n", iStatus);
+        }
 
         /* 获得相机的特性描述结构体。该结构体中包含了相机可设置的各种参数的范围信息。决定了相关函数的参数 */
         tSdkCameraCapbility tCapability;  // 设备描述信息
@@ -200,18 +204,23 @@ class MindVision : public Capture {
             CameraReleaseImageBuffer(m_hCamera, m_pbyBuffer);
             printf("[MindVision] Camera Start Play\n");
             /*    处理录视频    */
-            if (stConfig.get<bool>("cap.record")) {
+            if (m_isEnableRecord = stConfig.get<bool>("cap.record")) {
                 std::string rC = "MJPG";
                 int recordCode = cv::VideoWriter::fourcc(rC[0], rC[1], rC[2], rC[3]);
                 std::string path = "../data/video/" + m_genVideoName("auto") + ".avi";
                 m_writer.open(path, recordCode, 210, stFrameInfo.size);
                 printf("| record: %s |\n", path.c_str());
-                m_isEnableRecord = true;
 
-                m_recordThread = std::thread([&]() {
+                m_recordThread = std::thread([&] {
                     while (m_isOpened) {
-                        m_semaphore.wait_for(2s, [&]() { m_writer << m_recordFrame; });
-                        thread_sleep_us(100);
+                        {
+                            std::unique_lock<std::mutex> lock(m_recordLock);
+                            if (m_cond.wait_for(lock, 2s, [&] { return m_record.load(); })) {
+                                m_writer << m_recordFrame;
+                                m_record = false;
+                            }
+                        }
+                        std::this_thread::sleep_for(100us);
                     }
                     PRINT_WARN("record quit\n");
                 });
@@ -278,7 +287,13 @@ class MindVision : public Capture {
                 1000 * (cv::getTickCount() - t) / cv::getTickFrequency());
 
             if (m_isEnableRecord) {
-                m_semaphore.signal_try([&]() { frame.copyTo(m_recordFrame); });
+                std::unique_lock<std::mutex> lock(m_recordLock, std::try_to_lock);
+                if (lock.owns_lock()) {
+                    frame.copyTo(m_recordFrame);
+                    m_record = true;
+                    lock.unlock();
+                    m_cond.notify_one();
+                }
             }
 
             /* 获得时间戳 */
