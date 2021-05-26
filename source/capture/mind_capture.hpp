@@ -217,6 +217,7 @@ class MindVision : public Capture {
                             std::unique_lock<std::mutex> lock(m_recordLock);
                             if (m_cond.wait_for(lock, 2s, [&] { return m_record.load(); })) {
                                 m_writer << m_recordFrame;
+                                m_record = false;
                             }
                         }
                         std::this_thread::sleep_for(100us);
@@ -289,7 +290,7 @@ class MindVision : public Capture {
                 std::unique_lock<std::mutex> lock(m_recordLock, std::try_to_lock);
                 if (lock.owns_lock()) {
                     frame.copyTo(m_recordFrame);
-                    m_record.exchange(true);
+                    m_record = true;
                     lock.unlock();
                     m_cond.notify_one();
                 }
