@@ -78,13 +78,14 @@ class TfClassifier {
      * @return true/false
      */
     static bool loadAndPre(cv::Mat img, cv::Mat &result) {
-        if (img.cols == 0)
+        if (img.rows == 0 || img.cols == 0)
             return false;
         /* 调整大小 同比缩放至fixedsize*fixedsize以内 */
-        if (img.cols < img.rows)
-            cv::resize(img, img, {int(img.cols * 1.0 / img.rows * fixedSize), fixedSize});
-        else
-            cv::resize(img, img, {fixedSize, int(img.rows * 1.0 / img.cols * fixedSize)});
+        if (img.cols < img.rows) {
+            cv::resize(img, img, {ceil(float(fixedSize) * img.cols / img.rows), fixedSize});
+        } else {
+            cv::resize(img, img, {fixedSize, ceil(float(fixedSize) * img.rows / img.cols)});
+        }
         /* 剪去边上多余部分 */
         int cutRatio1 = 0.15 * img.cols;
         int cutRatio2 = 0.05 * img.rows;
