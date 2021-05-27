@@ -57,20 +57,31 @@ class ArmorFinder {
         /* 寻找边缘，并圈出contours: bgrChecked -> contours */
         std::vector<std::vector<cv::Point2i>> contours;
         cv::findContours(bgrChecked, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
-        m_is.addContours("contours", contours, m_startPt);
+        // m_is.addContours("contours", contours, m_startPt);
 
         /* 对contours进行筛选 */
         std::vector<Light> lights;
         for (const auto &_pts : contours) {
-            /* 面积 >= 5 */
-            if (_pts.size() < 5)
+            // 目标不会出现在顶部
+            // if (_pts.at(0).y <= 100) {
+            //     continue;
+            // }
+            // 面积筛选
+            if (_pts.size() < 5) {
                 continue;
-
+            }
+            // 长度宽度筛选
             cv::RotatedRect rRect = cv::minAreaRect(_pts);
-            double hw = rRect.size.height / rRect.size.width;
-            /**
-             * 最小外接矩形长宽比2/3～3/2 
-             */
+            if (rRect.size.height < 3 || rRect.size.width < 3) {
+                continue;
+            }
+            // 面积比
+            double area = cv::contourArea(_pts);
+            if (area / rRect.size.area() < 0.3) {
+                continue;
+            }
+            // 最小外接矩形长宽比2/3～3/2
+            double hw = rRect.size.aspectRatio();
             if (hw > 0.666667 && hw < 1.5) {
                 continue;
             }
@@ -107,6 +118,7 @@ class ArmorFinder {
                 continue;
             }
 
+            std::cout << _light.angle << std::endl;
             lights.emplace_back(_light);
         }
         m_is.addLights("lights", lights, m_startPt);
@@ -119,6 +131,7 @@ class ArmorFinder {
         /* 对灯条进行两两组合并筛选出预检测的装甲板 */
         for (size_t i = 0; i < lights.size(); ++i) {
             for (size_t j = i + 1; j < lights.size(); ++j) {
+<<<<<<< HEAD
                 cv::Point2f AC2BC = lights[j].centerPt - lights[i].centerPt;
                 /*对两个灯条的错位度进行筛选*/
                 float angleSum = (lights[i].angle + lights[j].angle) / 2.0 / 180.0 * M_PI;  // in rad
@@ -135,27 +148,64 @@ class ArmorFinder {
                 double deltaAngle = cv::abs(lights[i].angle - lights[j].angle);
                 /* 对灯条组的长度，角度差，中心点tan值，x位置等进行筛选， */
                 if ((deltaAngle > 23.0 && minLength < 20) || (deltaAngle > 11.0 && minLength >= 20)) {
+=======
+                const auto &li = lights[i];
+                const auto &lj = lights[j];
+
+                double maxLength = cv::max(li.length, lj.length);
+                double minLength = cv::min(li.length, lj.length);
+                // double avgLength = (li.length + lj.length) / 2.0;
+                double deltaAngle = cv::abs(li.angle - lj.angle);
+                // 两灯条倾斜角
+                // if (deltaAngle > 20.0) {
+                //     continue;
+                // }
+                cv::Vec2f crossVec = lj.centerPt - li.centerPt;
+                float avgAngle = (li.angle + lj.angle) / 2.0 / 180.0 * M_PI;  // in rad
+                // 垂直坐标差值
+                if (li.bottomPt.y < lj.topPt.y || lj.bottomPt.y < li.topPt.y) {
                     continue;
                 }
-                if (cv::abs(lights[i].length - lights[j].length) / minLength > 0.5) {
+                // if (abs(crossVec[1]) > minLength) {
+                //     continue;
+                // }
+                // 水平坐标差值
+                if (abs(crossVec[0]) < minLength) {
+>>>>>>> afe61fe... 装甲板识别算法优化
                     continue;
                 }
+                if (cv::norm(crossVec) / minLength > 5) {
+                    continue;
+                }
+<<<<<<< HEAD
                 if (cv::fastAtan2(cv::abs(AC2BC.y), cv::abs(AC2BC.x)) > 25.0) {
                     continue;
                 }
                 if (AC2BC.x / minLength > 5) {
+=======
+                // 平行四边形度
+                cv::Vec2f orientation(cos(avgAngle), sin(avgAngle));
+                if (abs(orientation.dot(crossVec)) >= 25) {
                     continue;
                 }
+                // 长边短边比
+                if (maxLength > 1.5 * minLength) {
+>>>>>>> afe61fe... 装甲板识别算法优化
+                    continue;
+                }
+                // if (cv::fastAtan2(cv::abs(crossVec[1]), cv::abs(crossVec[0])) > 25.0) {
+                //     continue;
+                // }
                 Target target;
                 /* 计算像素坐标 */
-                target.setPixelPts(lights[i].topPt, lights[i].bottomPt, lights[j].bottomPt, lights[j].topPt,
+                target.setPixelPts(li.topPt, li.bottomPt, lj.bottomPt, lj.topPt,
                     m_startPt);
-                
+
                 /** 
                  * small: 135 x 55 -> 2.454
                  * large: 230 x 55 -> 4.1818
                  */
-                if (cv::norm(AC2BC) / minLength > 2.5)
+                if (cv::norm(crossVec) / minLength > 2.5)
                     target.type = TARGET_LARGE;  // 大装甲
 
                 // bool cancel = 0;
