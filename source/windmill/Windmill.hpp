@@ -201,7 +201,7 @@ namespace wm
         //std::vector<std::vector<cv::Point>> x;
         //x.push_back(contours[0]);
         //is->addContours("contours",x,cv::Point(0,0));
-        is->addText(cv::format("contourss: %u", contours.size()));
+        is->addText(cv::format("contourss: %lu", contours.size()));
         cv::RotatedRect Rrect;   //扇叶
         cv::RotatedRect Armor;   //装甲板
         

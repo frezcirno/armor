@@ -123,7 +123,7 @@ int main() {
                     isClient.update(frame, int(timeStamp / 1000));
                     isClient.addText(cv::format("size %d x %d", stFrameInfo.size.width, stFrameInfo.size.height));
                     isClient.addText(cv::format("ts %ld", timeStamp));
-                    isClient.addText(cv::format("fps %3d", 1000000 / cap->getCurrentInterval()));
+                    isClient.addText(cv::format("fps %3ld", 1000000 / cap->getCurrentInterval()));
                     isClient.addText(cv::format("send %2.2f ms", communicator.getCurrentInterval() / 1000.0));
 
                     isClient.clock("run");

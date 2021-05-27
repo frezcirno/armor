@@ -81,10 +81,18 @@ class TfClassifier {
         if (img.cols == 0)
             return false;
         /* 调整大小 同比缩放至fixedsize*fixedsize以内 */
+<<<<<<< HEAD
         if (img.cols < img.rows)
             cv::resize(img, img, {int(img.cols * 1.0 / img.rows * fixedSize), fixedSize});
         else
             cv::resize(img, img, {fixedSize, int(img.rows * 1.0 / img.cols * fixedSize)});
+=======
+        if (img.cols < img.rows) {
+            cv::resize(img, img, {(int)ceil(float(fixedSize) * img.cols / img.rows), fixedSize});
+        } else {
+            cv::resize(img, img, {fixedSize, (int)ceil(float(fixedSize) * img.rows / img.cols)});
+        }
+>>>>>>> aa01304... fix compile warnings
         /* 剪去边上多余部分 */
         int cutRatio1 = 0.15 * img.cols;
         int cutRatio2 = 0.05 * img.rows;
@@ -174,7 +182,11 @@ class TfClassifier {
             // is.addImg("cvtColor", _crop);
             cv::medianBlur(_crop, _crop, 3);
             // is.addImg("medianBlur", _crop);
+<<<<<<< HEAD
             cv::threshold(_crop, _crop, 30, 255, cv::THRESH_BINARY);
+=======
+            cv::threshold(_crop, _crop, 35, 255, cv::THRESH_BINARY);
+>>>>>>> aa01304... fix compile warnings
             is.addImg("crop", _crop);
 
             cv::Mat image;

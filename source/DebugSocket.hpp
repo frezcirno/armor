@@ -65,7 +65,7 @@ class DebugSocket {
         cv::imencode(".jpg", frame, sendBuf);
         std::string str_encode(sendBuf.begin(), sendBuf.end());
         size_t size = str_encode.size();
-        PRINT_INFO("[DEBUG] Send %d bytes\n", sendto(listenSock, &size, sizeof(size), 0, (struct sockaddr *)&serv_addr, addrlen));
-        PRINT_INFO("[DEBUG] Send %d bytes\n", sendto(listenSock, str_encode.c_str(), size, 0, (struct sockaddr *)&serv_addr, addrlen));
+        PRINT_INFO("[DEBUG] Send %ld bytes\n", sendto(listenSock, &size, sizeof(size), 0, (struct sockaddr *)&serv_addr, addrlen));
+        PRINT_INFO("[DEBUG] Send %ld bytes\n", sendto(listenSock, str_encode.c_str(), size, 0, (struct sockaddr *)&serv_addr, addrlen));
     }
 };
