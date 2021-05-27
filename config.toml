@@ -17,7 +17,7 @@
     # 视频路径或垃圾摄像头路径
     video-path = "../video/全国赛part3.avi"   
     # 录视频
-    record = false
+    record = true
 
 # 自瞄*
 [auto]
