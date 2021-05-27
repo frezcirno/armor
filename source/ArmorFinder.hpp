@@ -103,7 +103,7 @@ class ArmorFinder {
             _light.length = cv::norm(bottomPt - topPt);  //长度
 
             /* 判断长度和倾斜角是否合乎要求 */
-            if (_light.length < 3.0 || 800.0 < _light.length || cv::abs(_light.angle - 90) > 30.0) {
+            if (_light.length < 3.0 || 90.0 < _light.length || cv::abs(_light.angle - 90) > 30.0) {
                 continue;
             }
 

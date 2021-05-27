@@ -254,9 +254,8 @@ struct Target {                          // TODO: 结构体太大了，尝试优
      */
     void correctTrajectory_and_calcEuler(float bulletSpeed, float gPitch, float &finalPitch) {
         if (!bulletSpeed) {
-            bulletSpeed = 12;
+            bulletSpeed = 22;
         }
-        bulletSpeed = 12;
 
         double vdistance = 0.001 * cv::sqrt(ptsInWorld.x * ptsInWorld.x + ptsInWorld.z * ptsInWorld.z);  // 水平方向距离，单位m
         double hdistance = 0.001 * -ptsInWorld.y;                                                        // 竖直方向距离，向上为正，单位m
