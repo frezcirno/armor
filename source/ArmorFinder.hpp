@@ -131,24 +131,6 @@ class ArmorFinder {
         /* 对灯条进行两两组合并筛选出预检测的装甲板 */
         for (size_t i = 0; i < lights.size(); ++i) {
             for (size_t j = i + 1; j < lights.size(); ++j) {
-<<<<<<< HEAD
-                cv::Point2f AC2BC = lights[j].centerPt - lights[i].centerPt;
-                /*对两个灯条的错位度进行筛选*/
-                float angleSum = (lights[i].angle + lights[j].angle) / 2.0 / 180.0 * M_PI;  // in rad
-                if (abs(lights[i].angle - lights[j].angle) > 90) {
-                    angleSum += M_PI / 2;
-                }
-                cv::Vec2f orientation(cos(angleSum), sin(angleSum));
-                cv::Vec2f p2p(AC2BC.x, AC2BC.y);
-                if (abs(orientation.dot(p2p)) >= 25) {
-                    continue;
-                }
-                double minLength = cv::min(lights[i].length, lights[j].length);
-                double meanLength = (lights[i].length + lights[j].length) / 2.0;
-                double deltaAngle = cv::abs(lights[i].angle - lights[j].angle);
-                /* 对灯条组的长度，角度差，中心点tan值，x位置等进行筛选， */
-                if ((deltaAngle > 23.0 && minLength < 20) || (deltaAngle > 11.0 && minLength >= 20)) {
-=======
                 const auto &li = lights[i];
                 const auto &lj = lights[j];
 
@@ -171,18 +153,11 @@ class ArmorFinder {
                 // }
                 // 水平坐标差值
                 if (abs(crossVec[0]) < minLength) {
->>>>>>> afe61fe... 装甲板识别算法优化
                     continue;
                 }
                 if (cv::norm(crossVec) / minLength > 5) {
                     continue;
                 }
-<<<<<<< HEAD
-                if (cv::fastAtan2(cv::abs(AC2BC.y), cv::abs(AC2BC.x)) > 25.0) {
-                    continue;
-                }
-                if (AC2BC.x / minLength > 5) {
-=======
                 // 平行四边形度
                 cv::Vec2f orientation(cos(avgAngle), sin(avgAngle));
                 if (abs(orientation.dot(crossVec)) >= 25) {
@@ -190,7 +165,6 @@ class ArmorFinder {
                 }
                 // 长边短边比
                 if (maxLength > 1.5 * minLength) {
->>>>>>> afe61fe... 装甲板识别算法优化
                     continue;
                 }
                 // if (cv::fastAtan2(cv::abs(crossVec[1]), cv::abs(crossVec[0])) > 25.0) {
