@@ -293,8 +293,8 @@ class ImageShowClient : ImageShowBase {
     void addLights(const cv::String &eventName, const std::vector<Light> &lights, const cv::Point &offset) {
         if (s_mode == 0 || s_mode == 1)
             return;
-        cv::Scalar currentColor = m_getCurrentColor();
-        int thickness = 1;
+        cv::Scalar currentColor(0, 255, 0);
+        int thickness = 2;
         for (const auto &light : lights) {
             cv::line(m_frame, cv::Point(light.topPt.x + offset.x, light.topPt.y + offset.y),
                 cv::Point(light.centerPt.x + offset.x, light.centerPt.y + offset.y), currentColor, thickness);
@@ -321,11 +321,11 @@ class ImageShowClient : ImageShowBase {
     void addTargets(const cv::String &eventName, const std::vector<Target> &targets) {
         if (s_mode == 0 || s_mode == 1)
             return;
-        cv::Scalar currentColor = m_getCurrentColor();
-        int thickness = 1;
+        cv::Scalar currentColor(0, 0, 255);
+        int thickness = 2;
         for (const auto &_tar : targets) {
-            cv::line(m_frame, _tar.pixelPts2f.tl, _tar.pixelPts2f.bl, currentColor, thickness);
-            cv::line(m_frame, _tar.pixelPts2f.tr, _tar.pixelPts2f.br, currentColor, thickness);
+            cv::line(m_frame, _tar.pixelPts2f.tl, _tar.pixelPts2f.tr, currentColor, thickness);
+            cv::line(m_frame, _tar.pixelPts2f.bl, _tar.pixelPts2f.br, currentColor, thickness);
         }
         m_putMarginText(eventName + cv::format(": %d", int(targets.size())), currentColor, thickness);
     }
@@ -433,8 +433,8 @@ class ImageShowClient : ImageShowBase {
     void addClassifiedTargets(const cv::String &eventName, const std::vector<Target> &targets) {
         if (s_mode == 0)
             return;
-        cv::Scalar currentColor = m_getCurrentColor();
-        int thickness = 1;
+        cv::Scalar currentColor(0, 255, 0);
+        int thickness = 2;
         for (const auto &_tar : targets) {
             cv::line(m_frame, _tar.pixelPts2f.tl, _tar.pixelPts2f.bl, currentColor, thickness);
             cv::line(m_frame, _tar.pixelPts2f.bl, _tar.pixelPts2f.br, currentColor, thickness);
@@ -452,7 +452,7 @@ class ImageShowClient : ImageShowBase {
     void addFinalTargets(const cv::String &eventName, const Target &target) {
         if (s_mode == 0)
             return;
-        cv::Scalar currentColor = m_getCurrentColor();
+        cv::Scalar currentColor(0, 255, 255);
         int thickness = 3;
         cv::line(m_frame, target.pixelPts2f.tl, target.pixelPts2f.bl, currentColor, thickness);
         cv::line(m_frame, target.pixelPts2f.bl, target.pixelPts2f.br, currentColor, thickness);
@@ -732,7 +732,7 @@ class ImageShowServer : ImageShowBase {
                                 cv::Point p(x, y);
                                 /* 按下左键 */
                                 if (event == cv::EVENT_LBUTTONDOWN) {
-                                    PRINT_WARN("b: %d, g: %d, r: %d \n", frame.at<cv::Vec3b>(p)[0],
+                                    PRINT_WARN("x: %d, y: %d, b: %d, g: %d, r: %d \n", x, y, frame.at<cv::Vec3b>(p)[0],
                                         frame.at<cv::Vec3b>(p)[1], frame.at<cv::Vec3b>(p)[2]);
                                 }
                             },
