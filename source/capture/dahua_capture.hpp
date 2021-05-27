@@ -233,10 +233,10 @@ class DaHuaVision : public Capture {
             printf("[DaHua] Camera Start Play\n");
             /*    处理录视频    */
             if (m_isEnableRecord = stConfig.get<bool>("cap.record")) {
-                std::string rC = "MJPG";
+                std::string rC = "XVID";
                 int recordCode = cv::VideoWriter::fourcc(rC[0], rC[1], rC[2], rC[3]);
                 std::string path = "../data/video/" + m_genVideoName("auto") + ".avi";
-                m_writer.open(path, recordCode, 210, stFrameInfo.size);
+                m_writer.open(path, recordCode, 60, stFrameInfo.size);
                 printf("| record: %s |\n", path.c_str());
 
                 m_recordThread = std::thread([&] {
@@ -247,7 +247,7 @@ class DaHuaVision : public Capture {
                                 m_writer << m_recordFrame;
                             }
                         }
-                        std::this_thread::sleep_for(100us);
+                        std::this_thread::sleep_for(20ms);
                     }
                     PRINT_WARN("record quit\n");
                 });
