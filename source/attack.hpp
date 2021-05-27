@@ -384,7 +384,7 @@ class Attack : AttackBase {
 
             /* 8.反小陀螺模式*/
             bool is_anti = is_antitop();
-            m_is.addText(cv::format("is_antitop   %.3f", is_anti));
+            m_is.addText(cv::format("is_antitop   %.3d", is_anti));
             if (is_anti) {
                 float width = 0.0;
                 if (target_box.type == TARGET_SMALL)

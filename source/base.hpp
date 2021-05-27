@@ -99,6 +99,6 @@ struct Light {
     cv::Point2f topPt;
     cv::Point2f bottomPt;
     cv::Point2f centerPt;
-    double angle = 0;
+    double angle = 0; // 灯条倾斜角，范围[0, 180)
     double length = 0;
 };

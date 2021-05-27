@@ -82,9 +82,9 @@ class TfClassifier {
             return false;
         /* 调整大小 同比缩放至fixedsize*fixedsize以内 */
         if (img.cols < img.rows) {
-            cv::resize(img, img, {ceil(float(fixedSize) * img.cols / img.rows), fixedSize});
+            cv::resize(img, img, {(int)ceil(float(fixedSize) * img.cols / img.rows), fixedSize});
         } else {
-            cv::resize(img, img, {fixedSize, ceil(float(fixedSize) * img.rows / img.cols)});
+            cv::resize(img, img, {fixedSize, (int)ceil(float(fixedSize) * img.rows / img.cols)});
         }
         /* 剪去边上多余部分 */
         int cutRatio1 = 0.15 * img.cols;
@@ -172,9 +172,9 @@ class TfClassifier {
             cv::warpPerspective(tmp2, _crop, transMat, cv::Size(tmp2.size()));
             /* 转灰度图 */
             cv::cvtColor(_crop, _crop, cv::COLOR_BGR2GRAY);
-            is.addImg("cvtColor", _crop);
+            // is.addImg("cvtColor", _crop);
             cv::medianBlur(_crop, _crop, 3);
-            is.addImg("medianBlur", _crop);
+            // is.addImg("medianBlur", _crop);
             cv::threshold(_crop, _crop, 35, 255, cv::THRESH_BINARY);
             is.addImg("crop", _crop);
 

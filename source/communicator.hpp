@@ -297,7 +297,7 @@ class CommunicatorSerial : public Communicator {
                     /* 读值 */
                     std::vector<uint8_t> buffer_tmp;
                     size_t readed = m_ser.read(buffer_tmp, size_temp);
-                    PRINT_INFO("[serial] read %d\n", readed);
+                    PRINT_INFO("[serial] read %lu\n", readed);
                     buffer.insert(buffer.end(), buffer_tmp.begin(), buffer_tmp.end());
                     /* 校验 */
                     while (buffer.size() >= m_frameSize) {
