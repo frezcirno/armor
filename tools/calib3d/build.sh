@@ -1,0 +1,1 @@
+g++ camera_calibration.cpp $(pkg-config --cflags opencv4 --libs opencv4) -o calib

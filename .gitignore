@@ -66,3 +66,6 @@ data/raw/
 data/video/auto
 data/video/
 
+tools/calib3d/images/
+video/
+tools/calib3d/calib
