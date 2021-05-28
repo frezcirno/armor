@@ -118,7 +118,6 @@ class ArmorFinder {
                 continue;
             }
 
-            std::cout << _light.angle << std::endl;
             lights.emplace_back(_light);
         }
         m_is.addLights("lights", lights, m_startPt);
@@ -136,13 +135,17 @@ class ArmorFinder {
 
                 double maxLength = cv::max(li.length, lj.length);
                 double minLength = cv::min(li.length, lj.length);
-                // double avgLength = (li.length + lj.length) / 2.0;
+                double avgLength = (li.length + lj.length) / 2.0;
                 double deltaAngle = cv::abs(li.angle - lj.angle);
                 // 两灯条倾斜角
                 // if (deltaAngle > 20.0) {
                 //     continue;
                 // }
                 cv::Vec2f crossVec = lj.centerPt - li.centerPt;
+                double crossVecLength = cv::norm(crossVec);
+                std::cout << "maxLength: " << maxLength << std::endl;
+                std::cout << "minLength: " << minLength << std::endl;
+                std::cout << "crossVecLength: " << crossVecLength << std::endl;
                 float avgAngle = (li.angle + lj.angle) / 2.0 / 180.0 * M_PI;  // in rad
                 // 垂直坐标差值
                 if (li.bottomPt.y < lj.topPt.y || lj.bottomPt.y < li.topPt.y) {
@@ -152,10 +155,7 @@ class ArmorFinder {
                 //     continue;
                 // }
                 // 水平坐标差值
-                if (abs(crossVec[0]) < minLength) {
-                    continue;
-                }
-                if (cv::norm(crossVec) / minLength > 5) {
+                if (crossVecLength <= minLength || crossVecLength > 5 * minLength) {
                     continue;
                 }
                 // 平行四边形度
@@ -179,7 +179,7 @@ class ArmorFinder {
                  * small: 135 x 55 -> 2.454
                  * large: 230 x 55 -> 4.1818
                  */
-                if (cv::norm(crossVec) / minLength > 2.5)
+                if (crossVecLength / minLength > 2.5)
                     target.type = TARGET_LARGE;  // 大装甲
 
                 // bool cancel = 0;
