@@ -81,7 +81,7 @@ class ArmorFinder {
                 continue;
             }
             // 最小外接矩形长宽比2/3～3/2
-            double hw = rRect.size.aspectRatio();
+            double hw = rRect.size.width / rRect.size.height;
             if (hw > 0.666667 && hw < 1.5) {
                 continue;
             }
@@ -117,8 +117,6 @@ class ArmorFinder {
             if (_light.length < 3.0 || 90.0 < _light.length || cv::abs(_light.angle - 90) > 30.0) {
                 continue;
             }
-
-            std::cout << _light.angle << std::endl;
             lights.emplace_back(_light);
         }
         m_is.addLights("lights", lights, m_startPt);
@@ -156,6 +154,12 @@ class ArmorFinder {
                     continue;
                 }
                 if (cv::norm(crossVec) / minLength > 5) {
+                    continue;
+                }
+                cv::Vec2f topVec = lj.topPt - li.topPt;
+                cv::Vec2f bottomVec = lj.bottomPt - li.bottomPt;
+                double bottomTopRatio = cv::norm(bottomVec) / cv::norm(topVec);
+                if (bottomTopRatio < 5.0 / 6.0 || bottomTopRatio > 6.0 / 5.0) {
                     continue;
                 }
                 // 平行四边形度
