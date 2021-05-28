@@ -203,8 +203,8 @@ struct Target {                          // TODO: 结构体太大了，尝试优
          * 相机坐标系定义见上方
          */
         ptsInGimbal.x = ptsInCamera_Mat.at<double>(0, 0);
-        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) + 45;  // 垂直方向 45mm
-        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2);       // 前后方向
+        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) - 180;  // 垂直方向 45mm
+        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) - 100;       // 前后方向
     }
 
     /**
@@ -256,7 +256,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         if (!bulletSpeed) {
             bulletSpeed = 12;
         }
-        bulletSpeed = 12;
+        bulletSpeed = 1000;
 
         double vdistance = 0.001 * cv::sqrt(ptsInWorld.x * ptsInWorld.x + ptsInWorld.z * ptsInWorld.z);  // 水平方向距离，单位m
         double hdistance = 0.001 * -ptsInWorld.y;                                                        // 竖直方向距离，向上为正，单位m

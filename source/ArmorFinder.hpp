@@ -39,7 +39,7 @@ class ArmorFinder {
         m_is.clock("inRange");
         if (_colorMode) {
             /* 红色 */
-            cv::inRange(bgr, cv::Scalar(0, 0, 140), cv::Scalar(70, 70, 255), bgrChecked);
+            cv::inRange(bgr, cv::Scalar(0, 0, 140), cv::Scalar(110, 110, 255), bgrChecked);
         } else {
             /* 蓝色 */
             cv::inRange(bgr, cv::Scalar(130, 100, 0), cv::Scalar(255, 255, 65), bgrChecked);
@@ -81,7 +81,7 @@ class ArmorFinder {
                 continue;
             }
             // 最小外接矩形长宽比2/3～3/2
-            double hw = rRect.size.aspectRatio();
+            double hw = rRect.size.width / rRect.size.height;
             if (hw > 0.666667 && hw < 1.5) {
                 continue;
             }
@@ -143,9 +143,6 @@ class ArmorFinder {
                 // }
                 cv::Vec2f crossVec = lj.centerPt - li.centerPt;
                 double crossVecLength = cv::norm(crossVec);
-                std::cout << "maxLength: " << maxLength << std::endl;
-                std::cout << "minLength: " << minLength << std::endl;
-                std::cout << "crossVecLength: " << crossVecLength << std::endl;
                 float avgAngle = (li.angle + lj.angle) / 2.0 / 180.0 * M_PI;  // in rad
                 // 垂直坐标差值
                 if (li.bottomPt.y < lj.topPt.y || lj.bottomPt.y < li.topPt.y) {
@@ -159,8 +156,8 @@ class ArmorFinder {
                     continue;
                 }
                 // 平行四边形度
-                cv::Vec2f orientation(cos(avgAngle), sin(avgAngle));
-                if (abs(orientation.dot(crossVec)) >= 25) {
+                double crossAngle = cv::fastAtan2(crossVec[1], crossVec[0]) / 180.0 * M_PI;
+                if (abs(avgAngle - crossAngle) >= 45) {
                     continue;
                 }
                 // 长边短边比
