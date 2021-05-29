@@ -112,7 +112,7 @@ class Attack : AttackBase {
         for (auto iter = s_historyTargets.begin(); iter != s_historyTargets.end(); iter++) {
             iter->rTick++;
             /* 超过30帧就删除 */
-            if (iter->rTick > 30) {
+            if (iter->rTick > 5) {
                 s_historyTargets.erase(iter, s_historyTargets.end());
                 if (s_historyTargets.empty()) s_trackId = -1;
                 break;
@@ -325,7 +325,11 @@ class Attack : AttackBase {
                 float bulletSpeed;
                 float finalPitch = 0;
                 m_communicator.getBulletSpeed(&bulletSpeed);
+                double vdistance = 0.001 * cv::sqrt(s_historyTargets[0].ptsInWorld.x * s_historyTargets[0].ptsInWorld.x + s_historyTargets[0].ptsInWorld.z * s_historyTargets[0].ptsInWorld.z);  // 水平方向距离，单位m
+                double hdistance = 0.001 * -s_historyTargets[0].ptsInWorld.y;
                 s_historyTargets[0].correctTrajectory_and_calcEuler(bulletSpeed, gPitch, finalPitch);
+                m_is.addText(cv::format("vdistance %4f", vdistance));
+                m_is.addText(cv::format("hdistance %4f", hdistance));
                 m_is.addText(cv::format("finalPitch %4f", finalPitch));
                 rYaw = s_historyTargets[0].rYaw;
                 rPitch = s_historyTargets[0].rPitch;

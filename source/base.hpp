@@ -57,7 +57,7 @@ struct Camera {
         cv::read(fs["distortion_coefficients"], distCoeffs);
         fs.release();
     }
-} stCamera("../data/camera6mm.xml");
+} stCamera("../data/camera8mm.xml");
 
 // TODO: 测量, 实际检测灯长度不是55mm
 /**

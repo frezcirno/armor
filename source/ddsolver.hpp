@@ -13,7 +13,7 @@ class DDSolver {
     float k1;  // 和空气阻力有关的系数，等于(k0 / m)，pitchAdvance中用
 
   public:
-    DDSolver(float k1 = 0.10) : k1(k1) {
+    DDSolver(float k1 = 0.20) : k1(k1) {
         // k1 = DDSolver::get_k1(12, 10 * M_PI / 180, 3, 0.5); // 0.216194
         // PRINT_INFO("k1=%f\n", k1);
         // exit(0);

@@ -1,9 +1,9 @@
 
 [attack]
-    attack-color = 'red' # 击打颜色, ['red', 'blue']
+    attack-color = 'blue' # 击打颜色, ['red', 'blue']
 
 [communicator]
-    enable = false
+    enable = true
     serial-port = '/dev/ttyUSB0'
 
 [isServer]

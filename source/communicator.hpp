@@ -310,13 +310,13 @@ class CommunicatorSerial : public Communicator {
                                 memcpy(&frame, start, m_frameSize);
 
                                 /* 更新成员变量 */
-                                m_WorkMode.exchange(frame.extra[0]);
+                                //m_WorkMode.exchange(frame.extra[0]);
 
                                 if (m_isEnableReceiveGlobalAngle) {
                                     std::lock_guard<std::mutex> lock(m_mutex);
                                     m_bulletSpeed.emplace_front(frame.speed);
-                                    m_gYaws.emplace_front(frame.yaw / M_PI * 180);  // 转化成角度
-                                    m_gPitches.emplace_front(frame.pitch / M_PI * 180);
+                                    m_gYaws.emplace_front(frame.yaw * 180.0 / M_PI);  // 转化成角度
+                                    m_gPitches.emplace_front(frame.pitch - 3);
                                     if (m_bulletSpeed.size() > 10) m_bulletSpeed.pop_back();
                                     if (m_gYaws.size() > 10) m_gYaws.pop_back();
                                     if (m_gPitches.size() > 10) m_gPitches.pop_back();

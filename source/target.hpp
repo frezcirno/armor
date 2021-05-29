@@ -203,8 +203,8 @@ struct Target {                          // TODO: 结构体太大了，尝试优
          * 相机坐标系定义见上方
          */
         ptsInGimbal.x = ptsInCamera_Mat.at<double>(0, 0);
-        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) + 45;  // 垂直方向 45mm
-        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2);       // 前后方向
+        ptsInGimbal.y = ptsInCamera_Mat.at<double>(0, 1) - 110;  // 垂直方向 45mm
+        ptsInGimbal.z = ptsInCamera_Mat.at<double>(0, 2) - 80;       // 前后方向
     }
 
     /**
@@ -242,7 +242,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         cv::Mat ptsInWorldMat = m_rotX * (m_rotY * _pts);
         ptsInWorld.x = ptsInWorldMat.at<double>(0);
         ptsInWorld.y = ptsInWorldMat.at<double>(1);
-        ptsInWorld.z = ptsInWorldMat.at<double>(2);
+        ptsInWorld.z = ptsInWorldMat.at<double>(2) * 1.1;
     }
 
     /**
@@ -256,7 +256,7 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         if (!bulletSpeed) {
             bulletSpeed = 12;
         }
-        bulletSpeed = 12;
+        bulletSpeed = 13.6;
 
         double vdistance = 0.001 * cv::sqrt(ptsInWorld.x * ptsInWorld.x + ptsInWorld.z * ptsInWorld.z);  // 水平方向距离，单位m
         double hdistance = 0.001 * -ptsInWorld.y;                                                        // 竖直方向距离，向上为正，单位m
@@ -265,14 +265,14 @@ struct Target {                          // TODO: 结构体太大了，尝试优
         yaw = yaw > 180 ? yaw - 360 : yaw;
         rYaw = yaw;
 
-        if (vdistance < 3) {
+        if (vdistance < 2.0) {
             dd.pitchNaive(bulletSpeed, vdistance, hdistance, finalPitch);
         } else if (dd.pitchAdvance(bulletSpeed, vdistance, hdistance, finalPitch)) {
             // nothing
         } else {
-            finalPitch = -1;
+            finalPitch = 0;
             rPitch = cv::fastAtan2(ptsInGimbal.y, cv::sqrt(ptsInGimbal.x * ptsInGimbal.x + ptsInGimbal.z * ptsInGimbal.z));
-            return;
+            if (rPitch > 180) rPitch = 360 - rPitch;
         }
         finalPitch = finalPitch * 180 / M_PI;
         rPitch = finalPitch - gPitch;
