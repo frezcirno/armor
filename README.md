@@ -49,8 +49,8 @@
 1. 配置科学上网环境，保证能访问GitHub
 2. 修改Ubuntu软件源，改成速度快的源
 3. 执行env.sh脚本安装需要的软件包：`sudo ./env.sh`
-4. 配置相机SDK
-    1. 安装Dahua SDK：提供了可执行文件，直接执行即可
+4. 配置相机SDK，附带的`sdk.zip`中有
+    1. 安装Dahua SDK：提供了可执行文件，直接执行即可 PS:Dahua SDK可能会有更新，经常上网搜一下
     2. 安装MindVision SDK：将mindvision库全部文件拷贝到/opt/mindvision/下面
 5. 拷贝tensorflow头文件和库文件
 
